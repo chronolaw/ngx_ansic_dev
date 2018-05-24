@@ -9,12 +9,13 @@ cc_opt="-g -O0"
 prefix="--prefix=/opt/nginx"
 common_opts="--with-threads --with-pcre-jit"
 
-modules=""
-
 no_modules="--without-http_fastcgi_module \
             --without-http_uwsgi_module \
             --without-http_scgi_module
            "
+
+modules="ngx_http_ndg_test_module
+        "
 
 http_modules=""
 
