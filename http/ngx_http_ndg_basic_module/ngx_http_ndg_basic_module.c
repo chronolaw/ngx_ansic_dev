@@ -136,6 +136,12 @@ static void ngx_http_ngd_time_test()
 {
     time_t sec = ngx_time();
     ngx_time_t* now = ngx_timeofday();
+    ngx_msec_t msec = ngx_current_msec;
 
     assert(now->sec == sec);
+    assert(now->gmtoff = 8 * 60);
+
+    // ngx_monotonic_time
+    (void) msec;
+    //assert(msec == now->sec * 1000 + now->msec);
 }
