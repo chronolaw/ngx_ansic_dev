@@ -9,8 +9,8 @@ cc_opt="-g -O0"
 prefix="--prefix=/opt/nginx"
 common_opts="--with-threads --with-pcre-jit"
 
-no_modules="--without-http_fastcgi_module \
-            --without-http_uwsgi_module \
+no_modules="--without-http_fastcgi_module
+            --without-http_uwsgi_module
             --without-http_scgi_module
            "
 
@@ -33,18 +33,18 @@ do
     stream_modules="${stream_modules} --add-module=${src_path}/stream/${m} "
 done
 
-opts="${prefix}           \
-      ${common_opts}      \
-      ${http_modules}     \
-      ${stream_modules}   \
+opts="${prefix}
+      ${common_opts}
+      ${http_modules}
+      ${stream_modules}
       ${no_modules}
       "
 
 cd $ngx_path
 
-./configure     \
-    --build="${build_date}" \
-    --with-cc-opt="${cc_opt}"  \
+./configure                     \
+    --build="${build_date}"     \
+    --with-cc-opt="${cc_opt}"   \
     ${opts}
 
 
