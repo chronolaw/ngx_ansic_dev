@@ -8,7 +8,7 @@
 use Test::Nginx::Socket;
 
 repeat_each(2);
-plan tests => repeat_each() * (blocks() * 3);
+plan tests => repeat_each() * (blocks() * 4);
 
 run_tests();
 
@@ -29,6 +29,8 @@ GET /basic
 hello nginx
 
 --- error_log
+ngx_str ok
+ngx_time ok
 basic ok
 
 === TEST 2 : disable test
