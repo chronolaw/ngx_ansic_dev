@@ -33,23 +33,10 @@ do
     stream_modules="${stream_modules} --add-module=${src_path}/stream/${m} "
 done
 
-export LUAJIT_LIB=/usr/local/lib
-export LUAJIT_INC=/usr/local/include/luajit-2.1
-
-ld_opt="-Wl,-rpath,${LUAJIT_LIB}"
-
-ndk_module="${HOME}/github/ngx_devel_kit"
-ngx_lua_module="${HOME}/github/lua-nginx-module"
-
-ngx_lua="--add-module=${ndk_module}
-         --add-module=${ngx_lua_module}
-        "
-
 opts="${prefix}           \
       ${common_opts}      \
       ${http_modules}     \
       ${stream_modules}   \
-      ${ngx_lua}          \
       ${no_modules}
       "
 
@@ -58,7 +45,6 @@ cd $ngx_path
 ./configure     \
     --build="${build_date}" \
     --with-cc-opt="${cc_opt}"  \
-    --with-ld-opt="${ld_opt}"   \
     ${opts}
 
 
