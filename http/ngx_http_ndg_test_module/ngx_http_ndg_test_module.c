@@ -99,12 +99,10 @@ static ngx_int_t ngx_http_ndg_test_handler(ngx_http_request_t *r)
 
     lcf = ngx_http_get_module_loc_conf(r, ngx_http_ndg_test_module);
 
-    ngx_log_error(NGX_LOG_ERR, r->connection->log, 0, "hello ansi c");
-
     if (lcf->enable) {
         printf("hello nginx\n");
-    }
-    else {
+        ngx_log_error(NGX_LOG_ERR, r->connection->log, 0, "hello ansi c");
+    } else {
         printf("hello disabled\n");
     }
 
