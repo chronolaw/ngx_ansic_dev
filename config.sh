@@ -16,6 +16,7 @@ no_modules="--without-http_fastcgi_module
 
 modules="ngx_http_ndg_test_module
          ngx_http_ndg_basic_module
+         ngx_http_ndg_advance_module
         "
 
 http_modules=""
