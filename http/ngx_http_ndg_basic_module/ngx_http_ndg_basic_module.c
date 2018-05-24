@@ -9,8 +9,8 @@ static char *ngx_http_ndg_basic_merge_loc_conf(
 static ngx_int_t ngx_http_ndg_basic_init(ngx_conf_t* cf);
 static ngx_int_t ngx_http_ndg_basic_handler(ngx_http_request_t *r);
 
-static void ngx_http_ngd_string_test(ngx_http_request_t *r);
-static void ngx_http_ngd_time_test(ngx_http_request_t *r);
+static void ngx_http_ndg_string_test(ngx_http_request_t *r);
+static void ngx_http_ndg_time_test(ngx_http_request_t *r);
 
 static ngx_command_t ngx_http_ndg_basic_cmds[] =
 {
@@ -104,8 +104,8 @@ static ngx_int_t ngx_http_ndg_basic_handler(ngx_http_request_t *r)
 
     if (lcf->enable) {
 
-        ngx_http_ngd_string_test(r);
-        ngx_http_ngd_time_test(r);
+        ngx_http_ndg_string_test(r);
+        ngx_http_ndg_time_test(r);
 
         ngx_log_error(NGX_LOG_ERR, r->connection->log, 0, "basic ok");
     }
@@ -113,7 +113,7 @@ static ngx_int_t ngx_http_ndg_basic_handler(ngx_http_request_t *r)
     return NGX_DECLINED;
 }
 
-static void ngx_http_ngd_string_test(ngx_http_request_t *r)
+static void ngx_http_ndg_string_test(ngx_http_request_t *r)
 {
     ngx_str_t s1 = ngx_null_string;
     ngx_str_t s2 = ngx_string("matrix");
@@ -134,7 +134,7 @@ static void ngx_http_ngd_string_test(ngx_http_request_t *r)
     ngx_log_error(NGX_LOG_ERR, r->connection->log, 0, "ngx_str ok");
 }
 
-static void ngx_http_ngd_time_test(ngx_http_request_t *r)
+static void ngx_http_ndg_time_test(ngx_http_request_t *r)
 {
     time_t sec = ngx_time();
     ngx_time_t* now = ngx_timeofday();
