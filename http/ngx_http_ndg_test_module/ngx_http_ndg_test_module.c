@@ -71,7 +71,7 @@ static char *ngx_http_ndg_test_merge_loc_conf(
     ngx_http_ndg_test_loc_conf_t* prev = parent;
     ngx_http_ndg_test_loc_conf_t* conf = child;
 
-    ngx_conf_merge_value(conf->enable, prev->enable, 1);
+    ngx_conf_merge_value(conf->enable, prev->enable, 0);
 
     return NGX_CONF_OK;
 }
