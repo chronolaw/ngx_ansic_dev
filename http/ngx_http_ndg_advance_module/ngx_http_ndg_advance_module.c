@@ -115,6 +115,42 @@ static ngx_int_t ngx_http_ndg_advance_handler(ngx_http_request_t *r)
 
 static void ngx_http_ndg_array_test(ngx_http_request_t *r)
 {
+    ngx_array_t* arr;
+
+    // create array
+    arr = ngx_array_create(r->pool, 4, sizeof(ngx_uint_t));
+    if ( arr == NULL) {
+        ngx_log_error(NGX_LOG_ERR, r->connection->log, 0, "ngx_array_create failed");
+        return;
+    }
+
+    assert(arr->nelts == 0);
+    assert(arr->size == sizeof(ngx_uint_t));
+    assert(arr->nalloc == 4);
+
+    // push to array
+    ngx_uint_t i;
+    ngx_uint_t* p;
+    for (i = 0; i < 3; ++i) {
+        p = ngx_array_push(arr);
+        if ( p == NULL) {
+            ngx_log_error(NGX_LOG_ERR, r->connection->log, 0, "ngx_array_push failed");
+            return;
+        }
+
+        *p = i + 10;
+    }
+    assert(arr->nelts == 3);
+
+    // iterate array
+    ngx_uint_t* values = arr->elts;
+    for (i = 0; i < arr->nelts; ++i) {
+        assert(values[i] == i + 10);
+    }
+
+    // destroy array
+    ngx_array_destroy(arr);
+
     ngx_log_error(NGX_LOG_ERR, r->connection->log, 0, "ngx_array ok");
 }
 
