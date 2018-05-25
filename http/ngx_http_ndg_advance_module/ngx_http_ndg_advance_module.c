@@ -138,14 +138,14 @@ static void ngx_http_ndg_array_test(ngx_http_request_t *r)
             return;
         }
 
-        *p = i + 10;
+        *p = i;
     }
     assert(arr->nelts == 3);
 
     // iterate array
-    ngx_uint_t* values = arr->elts;
+    ngx_uint_t* data = arr->elts;
     for (i = 0; i < arr->nelts; ++i) {
-        assert(values[i] == i + 10);
+        assert(data[i] == i);
     }
 
     // destroy array
@@ -156,5 +156,45 @@ static void ngx_http_ndg_array_test(ngx_http_request_t *r)
 
 static void ngx_http_ndg_list_test(ngx_http_request_t *r)
 {
+    ngx_list_t* ls;
+
+    ls = ngx_list_create(r->pool, 2, sizeof(ngx_uint_t));
+    if (ls == NULL) {
+        ngx_log_error(NGX_LOG_ERR, r->connection->log, 0, "ngx_list_create failed");
+        return;
+    }
+
+    assert(ls->last == &ls->part);
+    assert(ls->part.next == NULL);
+    assert(ls->size == sizeof(ngx_uint_t));
+    assert(ls->nalloc == 2);
+
+    // push to list
+    ngx_uint_t i;
+    ngx_uint_t* p;
+    for (i = 0; i < 5; ++i) {
+        p = ngx_list_push(ls);
+        if ( p == NULL) {
+            ngx_log_error(NGX_LOG_ERR, r->connection->log, 0, "ngx_list_push failed");
+            return;
+        }
+
+        *p = i % ls->nalloc;
+    }
+
+    assert(ls->last != &ls->part);
+    assert(ls->part.next != NULL);
+
+    //ngx_uint_t i;
+    ngx_list_part_t* part;
+    ngx_uint_t* data;
+
+    for(part = &ls->part;part;part = part->next) {
+        data = part->elts;
+        for(i = 0;i < part->nelts; ++i) {
+            assert(data[i] == i);
+        }
+    }
+
     ngx_log_error(NGX_LOG_ERR, r->connection->log, 0, "ngx_list ok");
 }
