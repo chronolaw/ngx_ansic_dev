@@ -21,7 +21,7 @@ static ngx_command_t ngx_http_ndg_filter_cmds[] =
 
     {
         ngx_string("ndg_footer"),
-        NGX_HTTP_LOC_CONF,
+        NGX_HTTP_LOC_CONF|NGX_CONF_TAKE1,
         ngx_conf_set_str_slot,
         NGX_HTTP_LOC_CONF_OFFSET,
         offsetof(ngx_http_ndg_filter_loc_conf_t, footer),
@@ -101,7 +101,7 @@ static ngx_int_t ngx_http_ndg_header_filter(ngx_http_request_t *r)
         ngx_http_set_ctx(r, ctx, ngx_http_ndg_filter_module);
     }
 
-    if (ctx->flag) {
+    if (ctx->flag > 0) {
         return ngx_http_next_header_filter(r);
     }
 
@@ -137,6 +137,78 @@ static ngx_int_t ngx_http_ndg_header_filter(ngx_http_request_t *r)
 
 static ngx_int_t ngx_http_ndg_body_filter(ngx_http_request_t *r, ngx_chain_t *in)
 {
+    if (in == NULL) {
+        return ngx_http_next_body_filter(r, in);
+    }
+
+    ngx_http_ndg_filter_loc_conf_t* lcf;
+    lcf = ngx_http_get_module_loc_conf(r, ngx_http_ndg_filter_module);
+
+    // no footer string
+    if (lcf->footer.len == 0) {
+        return ngx_http_next_body_filter(r, in);
+    }
+
+    // get ctx
+    ngx_http_ndg_filter_ctx_t* ctx =
+            ngx_http_get_module_ctx(r, ngx_http_ndg_filter_module);
+
+    if (ctx == NULL) {
+        ctx = ngx_pcalloc(r->pool, sizeof(ngx_http_ndg_filter_ctx_t));
+        if (ctx == NULL) {
+            return NGX_ERROR;
+        }
+        ngx_http_set_ctx(r, ctx, ngx_http_ndg_filter_module);
+    }
+
+    // header filter error
+    if (ctx->flag != 1) {
+        return ngx_http_next_body_filter(r, in);
+    }
+
+    // try to find eof
+    ngx_chain_t *p;
+    for (p = in; p; p = p->next) {
+        if (p->buf->last_buf) {
+            break;
+        }
+    }
+
+    // eof not find
+    if (p == NULL) {
+        return ngx_http_next_body_filter(r, in);
+    }
+
+    // find eof
+    ctx->flag = 2;
+
+    ngx_buf_t* b = ngx_calloc_buf(r->pool);
+    if (b == NULL) {
+        return NGX_HTTP_INTERNAL_SERVER_ERROR;
+    }
+
+    b->pos = lcf->footer.data;
+    b->last = lcf->footer.data + lcf->footer.len;
+    b->memory = 1;
+    b->last_buf = 1;
+    b->last_in_chain = 1;
+
+    // set to the last node
+    if (ngx_buf_size(p->buf) == 0) {
+        p->buf = b;
+        return ngx_http_next_body_filter(r, in);
+    }
+
+    // add a new last node
+    ngx_chain_t* out = ngx_alloc_chain_link(r->pool);
+    out->buf = b;
+    out->next = NULL;
+
+    // link to the new node
+    p->next = out;
+    p->buf->last_buf = 0;
+    p->buf->last_in_chain = 0;
+
     return ngx_http_next_body_filter(r, in);
 }
 

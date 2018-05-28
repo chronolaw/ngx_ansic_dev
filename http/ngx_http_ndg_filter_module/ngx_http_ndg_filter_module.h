@@ -12,6 +12,7 @@ typedef struct {
     ngx_str_t   footer;
 } ngx_http_ndg_filter_loc_conf_t;
 
+// 0 - init; 1 - header ok; 2 - body ok
 typedef struct {
     int flag;
 } ngx_http_ndg_filter_ctx_t;
