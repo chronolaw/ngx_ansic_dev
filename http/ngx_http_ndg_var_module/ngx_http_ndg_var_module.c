@@ -6,13 +6,19 @@ static void *ngx_http_ndg_var_create_loc_conf(ngx_conf_t* cf);
 //static char *ngx_http_ndg_var_merge_loc_conf(
 //                ngx_conf_t *cf, void *parent, void *child);
 
+#if 0
 static char* ngx_http_ndg_echo_v(ngx_conf_t *cf, ngx_command_t *cmd, void *conf);
 static char* ngx_http_ndg_echo_cv(ngx_conf_t *cf, ngx_command_t *cmd, void *conf);
+#endif
 
+static char* ngx_http_ndg_complex_value(ngx_conf_t *cf, ngx_command_t *cmd, void *conf);
+
+static ngx_int_t ngx_http_ndg_var_init(ngx_conf_t* cf);
 static ngx_int_t ngx_http_ndg_var_handler(ngx_http_request_t *r);
 
 static ngx_command_t ngx_http_ndg_var_cmds[] =
 {
+#if 0
     {
         ngx_string("ndg_echo_v"),
         NGX_HTTP_LOC_CONF|NGX_CONF_TAKE1,
@@ -30,6 +36,16 @@ static ngx_command_t ngx_http_ndg_var_cmds[] =
         offsetof(ngx_http_ndg_var_loc_conf_t, cv),
         NULL
     },
+#endif
+
+    {
+        ngx_string("ndg_complex_value"),
+        NGX_HTTP_LOC_CONF|NGX_CONF_TAKE1,
+        ngx_http_ndg_complex_value,
+        NGX_HTTP_LOC_CONF_OFFSET,
+        0,
+        NULL
+    },
 
     ngx_null_command
 };
@@ -37,7 +53,7 @@ static ngx_command_t ngx_http_ndg_var_cmds[] =
 static ngx_http_module_t ngx_http_ndg_var_module_ctx =
 {
     NULL,                                   /*  preconfiguration */
-    NULL,                                   /*  postconfiguration */
+    ngx_http_ndg_var_init,                  /*  postconfiguration */
     NULL,                                   /*  create main configuration */
     NULL,                                   /*  init main configuration */
     NULL,                                   /*  create server configuration */
@@ -84,6 +100,88 @@ static void *ngx_http_ndg_var_create_loc_conf(ngx_conf_t* cf)
 //
 //    return NGX_CONF_OK;
 //}
+
+static ngx_int_t ngx_http_ndg_var_init(ngx_conf_t* cf)
+{
+    ngx_http_handler_pt        *h;
+    ngx_http_core_main_conf_t  *cmcf;
+
+    cmcf = ngx_http_conf_get_module_main_conf(cf, ngx_http_core_module);
+
+    h = ngx_array_push(&cmcf->phases[NGX_HTTP_LOG_PHASE].handlers);
+    if (h == NULL) {
+        return NGX_ERROR;
+    }
+
+    *h = ngx_http_ndg_var_handler;
+
+    return NGX_OK;
+}
+
+static char* ngx_http_ndg_complex_value(ngx_conf_t *cf, ngx_command_t *cmd, void *conf)
+{
+    ngx_str_t* value = cf->args->elts;
+    ngx_http_ndg_var_loc_conf_t* lcf = conf;
+
+    lcf->cv = ngx_pcalloc(cf->pool, sizeof(ngx_http_complex_value_t));
+    if (lcf->cv == NULL) {
+        return NGX_CONF_ERROR;
+    }
+
+    ngx_http_compile_complex_value_t ccv;
+    ngx_memzero(&ccv, sizeof(ngx_http_compile_complex_value_t));
+
+    ccv.cf = cf;
+    ccv.value = &value[1];
+    ccv.complex_value = lcf->cv;
+
+    if (ngx_http_compile_complex_value(&ccv) != NGX_OK) {
+        return NGX_CONF_ERROR;
+    }
+
+    return NGX_CONF_OK;
+}
+
+static ngx_int_t ngx_http_ndg_var_handler(ngx_http_request_t *r)
+{
+    // log var
+    if (r->args.len) {
+        ngx_str_t name;
+
+        name.data = ngx_pstrdup(r->connection->pool, &r->args);
+        name.len = r->args.len;
+
+        ngx_http_variable_value_t   *vv;
+
+        ngx_uint_t key = ngx_hash_strlow(name.data, name.data, name.len);
+
+        vv = ngx_http_get_variable(r, &name, key);
+
+        if (vv == NULL || vv->not_found) {
+            return NGX_ERROR;
+        }
+
+        ngx_log_error(NGX_LOG_ERR, r->connection->log, 0, "log var %v ok", vv);
+    }
+
+    // log complex var
+    ngx_http_ndg_var_loc_conf_t* lcf;
+    lcf = ngx_http_get_module_loc_conf(r, ngx_http_ndg_var_module);
+
+    if (lcf->cv) {
+        ngx_str_t msg;
+
+        if (ngx_http_complex_value(r, lcf->cv, &msg) != NGX_OK) {
+            return NGX_ERROR;
+        }
+
+        ngx_log_error(NGX_LOG_ERR, r->connection->log, 0, "log complex %V ok", &msg);
+    }
+
+    return NGX_OK;
+}
+
+#if 0
 
 static char* ngx_http_ndg_echo_v(ngx_conf_t *cf, ngx_command_t *cmd, void *conf)
 {
@@ -237,3 +335,4 @@ static ngx_int_t ngx_http_ndg_var_handler(ngx_http_request_t *r)
     return rc;  //NGX_OK;
 }
 
+#endif
