@@ -110,22 +110,35 @@ static ngx_int_t ngx_http_ndg_echo_handler(ngx_http_request_t *r)
     ngx_http_ndg_echo_loc_conf_t* lcf;
     lcf = ngx_http_get_module_loc_conf(r, ngx_http_ndg_echo_module);
 
+    size_t len = lcf->msg.len;
+    if (r->args.len) {
+        len += r->args.len + 1;     // args + ','
+    }
+
     r->headers_out.status = NGX_HTTP_OK;
-    r->headers_out.content_length_n = lcf->msg.len;
+    r->headers_out.content_length_n = len;  //lcf->msg.len;
 
     rc = ngx_http_send_header(r);
     if (rc == NGX_ERROR || rc > NGX_OK || r->header_only) {
         return rc;
     }
 
-    ngx_buf_t* b = ngx_calloc_buf(r->pool);
+    //ngx_buf_t* b = ngx_calloc_buf(r->pool);
+    ngx_buf_t* b = ngx_create_temp_buf(r->pool, len);
     if (b == NULL) {
         return NGX_HTTP_INTERNAL_SERVER_ERROR;
     }
 
-    b->pos = lcf->msg.data;
-    b->last = lcf->msg.data + lcf->msg.len;
-    b->memory = 1;
+    if (r->args.len) {
+        b->last = ngx_snprintf(b->pos, len, "%V,%V", &r->args, &lcf->msg);
+    } else {
+        b->last = ngx_snprintf(b->pos, len, "%V", &lcf->msg);
+    }
+
+    //b->pos = lcf->msg.data;
+    //b->last = lcf->msg.data + lcf->msg.len;
+    //b->memory = 1;
+
     b->last_buf = 1;
     b->last_in_chain = 1;
 
