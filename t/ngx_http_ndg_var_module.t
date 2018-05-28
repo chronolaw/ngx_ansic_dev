@@ -8,40 +8,66 @@
 use Test::Nginx::Socket;
 
 repeat_each(2);
-plan tests => repeat_each() * (blocks() + 4);
+plan tests => repeat_each() * (blocks() * 4);
 
 run_tests();
 
 __DATA__
 
-=== TEST 1 : echo var
+=== TEST 1 : log var
 
 --- config
     location = /var {
-        ndg_echo_v $uri;
+        return 200 "hello\n";
+    }
+
+--- request
+GET /var?uri
+
+--- response_body
+hello
+
+--- error_log
+log var /var ok
+
+--- no_error_log
+log complex
+
+=== TEST 2 : log complex
+
+--- config
+    location = /var {
+        ndg_complex_value "hello $scheme $uri";
+        return 200 "hello\n";
     }
 
 --- request
 GET /var
 
---- response_body : /var
+--- response_body
+hello
 
 --- error_log
-echo var ok
+log complex hello http /var ok
 
-=== TEST 2 : echo complex var
+--- no_error_log
+log var
+
+=== TEST 3 : log var&complex
 
 --- config
-    location = /cv {
-        ndg_echo_cv "hello $uri\n";
+    location = /var {
+        ndg_complex_value "$request_method $scheme $args";
+        return 200 "hello\n";
     }
 
 --- request
-GET /cv
+GET /var?remote_addr
 
 --- response_body
-hello /cv
+hello
 
 --- error_log
-echo cv ok
+log var 127.0.0.1 ok
+log complex GET http remote_addr ok
 
