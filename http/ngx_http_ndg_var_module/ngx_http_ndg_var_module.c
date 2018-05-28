@@ -188,12 +188,16 @@ static ngx_int_t ngx_http_ndg_var_handler(ngx_http_request_t *r)
 
         msg.data = vv->data;
         msg.len = vv->len;
+
+        ngx_log_error(NGX_LOG_ERR, r->connection->log, 0, "echo var ok");
     } else {
         // use complex var
 
         if (ngx_http_complex_value(r, &lcf->cv, &msg) != NGX_OK) {
             return NGX_ERROR;
         }
+
+        ngx_log_error(NGX_LOG_ERR, r->connection->log, 0, "echo cv ok");
     }
 
     size_t len = msg.len;
@@ -229,8 +233,6 @@ static ngx_int_t ngx_http_ndg_var_handler(ngx_http_request_t *r)
 
     rc = ngx_http_output_filter(r, out);
 
-    //ngx_log_t* log = r->connection->log;
-    ngx_log_error(NGX_LOG_ERR, r->connection->log, 0, "var echo ok");
 
     return rc;  //NGX_OK;
 }
