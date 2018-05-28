@@ -192,14 +192,12 @@ static ngx_int_t ngx_http_ndg_var_handler(ngx_http_request_t *r)
     if (r->args.len) {
         ngx_str_t name;
 
-        name.data = ngx_pstrdup(r->connection->pool, &r->args);
         name.len = r->args.len;
-
-        ngx_http_variable_value_t   *vv;
+        name.data = ngx_pstrdup(r->connection->pool, &r->args);
 
         ngx_uint_t key = ngx_hash_strlow(name.data, name.data, name.len);
 
-        vv = ngx_http_get_variable(r, &name, key);
+        ngx_http_variable_value_t *vv = ngx_http_get_variable(r, &name, key);
 
         if (vv == NULL || vv->not_found) {
             ngx_log_error(NGX_LOG_ERR, r->connection->log, 0, "log var %V failed", &name);
