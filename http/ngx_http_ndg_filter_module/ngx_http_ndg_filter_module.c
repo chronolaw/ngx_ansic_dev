@@ -105,8 +105,6 @@ static ngx_int_t ngx_http_ndg_header_filter(ngx_http_request_t *r)
         return ngx_http_next_header_filter(r);
     }
 
-    ctx->flag = 1;
-
     ngx_http_ndg_filter_loc_conf_t* lcf;
     lcf = ngx_http_get_module_loc_conf(r, ngx_http_ndg_filter_module);
 
@@ -124,13 +122,19 @@ static ngx_int_t ngx_http_ndg_header_filter(ngx_http_request_t *r)
             h->key = data[i].key;
             h->value = data[i].value;
         }
+
+        ctx->flag = 1;
     }
 
     if (lcf->footer.len && r->headers_out.content_length_n > 0) {
         r->headers_out.content_length_n += lcf->footer.len;
+
+        ctx->flag = 1;
     }
 
-    ngx_log_error(NGX_LOG_ERR, r->connection->log, 0, "header filter ok");
+    if (ctx->flag > 0) {
+        ngx_log_error(NGX_LOG_ERR, r->connection->log, 0, "header filter ok");
+    }
 
     return ngx_http_next_header_filter(r);
 }
@@ -192,6 +196,8 @@ static ngx_int_t ngx_http_ndg_body_filter(ngx_http_request_t *r, ngx_chain_t *in
     b->memory = 1;
     b->last_buf = 1;
     b->last_in_chain = 1;
+
+    ngx_log_error(NGX_LOG_ERR, r->connection->log, 0, "body filter ok");
 
     // set to the last node
     if (ngx_buf_size(p->buf) == 0) {
