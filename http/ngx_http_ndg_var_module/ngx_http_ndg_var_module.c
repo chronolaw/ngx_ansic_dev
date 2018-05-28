@@ -11,6 +11,10 @@ static char* ngx_http_ndg_echo_v(ngx_conf_t *cf, ngx_command_t *cmd, void *conf)
 static char* ngx_http_ndg_echo_cv(ngx_conf_t *cf, ngx_command_t *cmd, void *conf);
 #endif
 
+static ngx_int_t ngx_http_ndg_add_variables(ngx_conf_t *cf);
+static ngx_int_t ngx_http_current_method_variable(ngx_http_request_t *r,
+    ngx_http_variable_value_t *v, uintptr_t data);
+
 static char* ngx_http_ndg_complex_value(ngx_conf_t *cf, ngx_command_t *cmd, void *conf);
 
 static ngx_int_t ngx_http_ndg_var_init(ngx_conf_t* cf);
@@ -52,7 +56,7 @@ static ngx_command_t ngx_http_ndg_var_cmds[] =
 
 static ngx_http_module_t ngx_http_ndg_var_module_ctx =
 {
-    NULL,                                   /*  preconfiguration */
+    ngx_http_ndg_add_variables,             /*  preconfiguration */
     ngx_http_ndg_var_init,                  /*  postconfiguration */
     NULL,                                   /*  create main configuration */
     NULL,                                   /*  init main configuration */
@@ -88,6 +92,46 @@ static void *ngx_http_ndg_var_create_loc_conf(ngx_conf_t* cf)
     }
 
     return conf;
+}
+
+static ngx_http_variable_t  ngx_http_ndg_vars[] = {
+    {
+        ngx_string("current_method"), NULL,
+        ngx_http_current_method_variable, 0,
+        NGX_HTTP_VAR_NOCACHEABLE, 0
+    },
+
+    ngx_http_null_variable
+};
+
+static ngx_int_t ngx_http_ndg_add_variables(ngx_conf_t *cf)
+{
+    ngx_http_variable_t  *var, *v;
+
+    for (v = ngx_http_ndg_vars; v->name.len; v++) {
+        var = ngx_http_add_variable(cf, &v->name, v->flags);
+        if (var == NULL) {
+            return NGX_ERROR;
+        }
+
+        var->get_handler = v->get_handler;
+        var->data = v->data;
+    }
+
+    return NGX_OK;
+}
+
+static ngx_int_t ngx_http_current_method_variable(ngx_http_request_t *r,
+    ngx_http_variable_value_t *v, uintptr_t data)
+{
+    v->len = r->method_name.len;
+    v->data = r->method_name.data;
+
+    v->valid = 1;
+    v->not_found = 0;
+    v->no_cacheable = 0;
+
+    return NGX_OK;
 }
 
 //static char *ngx_http_ndg_var_merge_loc_conf(

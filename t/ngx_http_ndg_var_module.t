@@ -110,3 +110,20 @@ hello
 log var 127.0.0.1 ok
 log complex GET http remote_addr ok
 
+=== TEST 6 : $current_method var
+
+--- config
+    location = /var {
+        return 200 "hello $current_method\n";
+    }
+
+--- request
+GET /var
+
+--- response_body
+hello GET
+
+--- no_error_log
+log var
+log complex
+
