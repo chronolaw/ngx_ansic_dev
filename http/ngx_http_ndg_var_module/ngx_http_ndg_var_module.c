@@ -158,6 +158,7 @@ static ngx_int_t ngx_http_ndg_var_handler(ngx_http_request_t *r)
         vv = ngx_http_get_variable(r, &name, key);
 
         if (vv == NULL || vv->not_found) {
+            ngx_log_error(NGX_LOG_ERR, r->connection->log, 0, "log var %V failed", &name);
             return NGX_ERROR;
         }
 

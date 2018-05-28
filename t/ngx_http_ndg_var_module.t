@@ -33,7 +33,26 @@ log var /var ok
 --- no_error_log
 log complex
 
-=== TEST 2 : log complex
+=== TEST 2 : log var not found
+
+--- config
+    location = /var {
+        return 200 "hello\n";
+    }
+
+--- request
+GET /var?xxx
+
+--- response_body
+hello
+
+--- error_log
+log var xxx failed
+
+--- no_error_log
+log complex
+
+=== TEST 3 : log complex
 
 --- config
     location = /var {
@@ -53,7 +72,27 @@ log complex hello http /var ok
 --- no_error_log
 log var
 
-=== TEST 3 : log var&complex
+=== TEST 4 : log plain
+
+--- config
+    location = /var {
+        ndg_complex_value "hello nginx";
+        return 200 "hello\n";
+    }
+
+--- request
+GET /var
+
+--- response_body
+hello
+
+--- error_log
+log complex hello nginx ok
+
+--- no_error_log
+log var
+
+=== TEST 5 : log var&complex
 
 --- config
     location = /var {
