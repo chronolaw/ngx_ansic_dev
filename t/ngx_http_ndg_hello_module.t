@@ -14,16 +14,16 @@ run_tests();
 
 __DATA__
 
-=== TEST 1 : enable test module
+=== TEST 1 : enable hello module
 
 --- config
-    location = /test {
-        ndg_test on;
+    location = /hello {
+        ndg_hello on;
         return 200 "hello nginx\n";
     }
 
 --- request
-GET /test
+GET /hello
 
 --- response_body
 hello nginx
@@ -31,16 +31,16 @@ hello nginx
 --- error_log
 hello ansi c
 
-=== TEST 2 : disable test module
+=== TEST 2 : disable hello module
 
 --- config
-    location = /test {
-        ndg_test off;
+    location = /hello {
+        ndg_hello off;
         return 200 "hello nginx\n";
     }
 
 --- request
-GET /test
+GET /hello
 
 --- response_body
 hello nginx
