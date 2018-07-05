@@ -1,5 +1,6 @@
 // Copyright (c) 2018
 // Author: Chrono Law
+
 #include "ngx_http_ndg_hello_module.h"
 
 static void *ngx_http_ndg_hello_create_loc_conf(ngx_conf_t* cf);

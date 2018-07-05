@@ -1,5 +1,6 @@
 // Copyright (c) 2018
 // Author: Chrono Law
+
 #ifndef _NGX_HTTP_NDG_HELLO_MODULE_H_INCLUDED_
 #define _NGX_HTTP_NDG_HELLO_MODULE_H_INCLUDED_
 
