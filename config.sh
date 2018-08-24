@@ -31,8 +31,7 @@ done
 
 modules=""
 
-stream_modules=""
-#stream_modules="--with-stream "
+stream_modules="--with-stream "
 
 for m in $modules
 do
