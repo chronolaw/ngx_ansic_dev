@@ -112,7 +112,7 @@ static ngx_int_t ngx_http_ndg_header_filter(ngx_http_request_t *r)
         ngx_keyval_t* data = lcf->headers->elts;
         ngx_uint_t i;
 
-        for(i = 0;i < lcf->headers->nelts;++i) {
+        for (i = 0;i < lcf->headers->nelts;++i) {
             ngx_table_elt_t *h = ngx_list_push(&r->headers_out.headers);
             if (h == NULL) {
                 return NGX_ERROR;

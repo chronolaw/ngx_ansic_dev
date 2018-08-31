@@ -69,7 +69,7 @@ static void *ngx_http_ndg_advance_create_loc_conf(ngx_conf_t* cf)
 }
 
 static char *ngx_http_ndg_advance_merge_loc_conf(
-                    ngx_conf_t *cf, void *parent, void *child)
+    ngx_conf_t *cf, void *parent, void *child)
 {
     ngx_http_ndg_advance_loc_conf_t* prev = parent;
     ngx_http_ndg_advance_loc_conf_t* conf = child;
@@ -119,7 +119,7 @@ static void ngx_http_ndg_array_test(ngx_http_request_t *r)
 
     // create array
     arr = ngx_array_create(r->pool, 4, sizeof(ngx_uint_t));
-    if ( arr == NULL) {
+    if (arr == NULL) {
         ngx_log_error(NGX_LOG_ERR, r->connection->log, 0, "ngx_array_create failed");
         return;
     }
@@ -133,7 +133,7 @@ static void ngx_http_ndg_array_test(ngx_http_request_t *r)
     ngx_uint_t* p;
     for (i = 0; i < 3; ++i) {
         p = ngx_array_push(arr);
-        if ( p == NULL) {
+        if (p == NULL) {
             ngx_log_error(NGX_LOG_ERR, r->connection->log, 0, "ngx_array_push failed");
             return;
         }
@@ -174,7 +174,7 @@ static void ngx_http_ndg_list_test(ngx_http_request_t *r)
     ngx_uint_t* p;
     for (i = 0; i < 5; ++i) {
         p = ngx_list_push(ls);
-        if ( p == NULL) {
+        if (p == NULL) {
             ngx_log_error(NGX_LOG_ERR, r->connection->log, 0, "ngx_list_push failed");
             return;
         }
@@ -189,9 +189,9 @@ static void ngx_http_ndg_list_test(ngx_http_request_t *r)
     ngx_list_part_t* part;
     ngx_uint_t* data;
 
-    for(part = &ls->part;part;part = part->next) {
+    for (part = &ls->part;part;part = part->next) {
         data = part->elts;
-        for(i = 0;i < part->nelts; ++i) {
+        for (i = 0;i < part->nelts; ++i) {
             assert(data[i] == i);
         }
     }

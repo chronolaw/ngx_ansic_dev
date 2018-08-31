@@ -67,7 +67,7 @@ static void *ngx_http_ndg_hello_create_loc_conf(ngx_conf_t* cf)
 }
 
 static char *ngx_http_ndg_hello_merge_loc_conf(
-                    ngx_conf_t *cf, void *parent, void *child)
+    ngx_conf_t *cf, void *parent, void *child)
 {
     ngx_http_ndg_hello_loc_conf_t* prev = parent;
     ngx_http_ndg_hello_loc_conf_t* conf = child;

@@ -7,15 +7,15 @@ static void *ngx_http_ndg_var_create_loc_conf(ngx_conf_t* cf);
 //                ngx_conf_t *cf, void *parent, void *child);
 
 #if 0
-static char* ngx_http_ndg_echo_v(ngx_conf_t *cf, ngx_command_t *cmd, void *conf);
-static char* ngx_http_ndg_echo_cv(ngx_conf_t *cf, ngx_command_t *cmd, void *conf);
+static char *ngx_http_ndg_echo_v(ngx_conf_t *cf, ngx_command_t *cmd, void *conf);
+static char *ngx_http_ndg_echo_cv(ngx_conf_t *cf, ngx_command_t *cmd, void *conf);
 #endif
 
 static ngx_int_t ngx_http_ndg_add_variables(ngx_conf_t *cf);
 static ngx_int_t ngx_http_current_method_variable(ngx_http_request_t *r,
     ngx_http_variable_value_t *v, uintptr_t data);
 
-static char* ngx_http_ndg_complex_value(ngx_conf_t *cf, ngx_command_t *cmd, void *conf);
+static char *ngx_http_ndg_complex_value(ngx_conf_t *cf, ngx_command_t *cmd, void *conf);
 
 static ngx_int_t ngx_http_ndg_var_init(ngx_conf_t* cf);
 static ngx_int_t ngx_http_ndg_var_handler(ngx_http_request_t *r);
@@ -162,7 +162,7 @@ static ngx_int_t ngx_http_ndg_var_init(ngx_conf_t* cf)
     return NGX_OK;
 }
 
-static char* ngx_http_ndg_complex_value(ngx_conf_t *cf, ngx_command_t *cmd, void *conf)
+static char *ngx_http_ndg_complex_value(ngx_conf_t *cf, ngx_command_t *cmd, void *conf)
 {
     ngx_str_t* value = cf->args->elts;
     ngx_http_ndg_var_loc_conf_t* lcf = conf;
@@ -226,7 +226,7 @@ static ngx_int_t ngx_http_ndg_var_handler(ngx_http_request_t *r)
 
 #if 0
 
-static char* ngx_http_ndg_echo_v(ngx_conf_t *cf, ngx_command_t *cmd, void *conf)
+static char *ngx_http_ndg_echo_v(ngx_conf_t *cf, ngx_command_t *cmd, void *conf)
 {
     ngx_http_core_loc_conf_t    *clcf;
 
@@ -244,7 +244,7 @@ static char* ngx_http_ndg_echo_v(ngx_conf_t *cf, ngx_command_t *cmd, void *conf)
     // set var
 
     char* rc = ngx_conf_set_str_slot(cf, cmd, conf);
-    if ( rc != NGX_CONF_OK) {
+    if (rc != NGX_CONF_OK) {
         return rc;
     }
 
@@ -252,7 +252,7 @@ static char* ngx_http_ndg_echo_v(ngx_conf_t *cf, ngx_command_t *cmd, void *conf)
     //ngx_str_t* v = (ngx_str_t*)(p + cmd->offset);
     ngx_http_ndg_var_loc_conf_t* lcf = conf;
 
-    if ( lcf->v.data[0] != '$') {
+    if (lcf->v.data[0] != '$') {
         return NGX_CONF_ERROR;
     }
 
@@ -262,7 +262,7 @@ static char* ngx_http_ndg_echo_v(ngx_conf_t *cf, ngx_command_t *cmd, void *conf)
     return NGX_CONF_OK;
 }
 
-static char* ngx_http_ndg_echo_cv(ngx_conf_t *cf, ngx_command_t *cmd, void *conf)
+static char *ngx_http_ndg_echo_cv(ngx_conf_t *cf, ngx_command_t *cmd, void *conf)
 {
     ngx_http_core_loc_conf_t    *clcf;
 
