@@ -27,7 +27,7 @@ hfiles=`find -L $path -name 'ngx_*.h'`
 #echo "C Files: $cfiles"
 
 #ack '/\*  +' src /dev/null && exit 1
-ack '(?<=\#define)\s*DDEBUG\s*[1-9]' src /dev/null && exit 1
+#ack '(?<=\#define)\s*DDEBUG\s*[1-9]' src /dev/null && exit 1
 
 # text width is over 80 characters
 #ack '.{81}' $cfiles /dev/null
