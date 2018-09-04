@@ -196,5 +196,11 @@ static void ngx_http_ndg_list_test(ngx_http_request_t *r)
         }
     }
 
+    // use macro each-loop
+    ngx_uint_t *value;
+    ngx_list_each(value, ls) {
+        ngx_log_error(NGX_LOG_ERR, r->connection->log, 0, "elt = %ud", *value);
+    } ngx_list_loop;
+
     ngx_log_error(NGX_LOG_ERR, r->connection->log, 0, "ngx_list ok");
 }

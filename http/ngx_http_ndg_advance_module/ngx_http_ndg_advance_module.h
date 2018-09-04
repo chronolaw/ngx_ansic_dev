@@ -5,6 +5,8 @@
 
 #include <nginx.h>
 #include <ngx_http.h>
+#include <ngx_aux.h>
+
 #include <assert.h>
 
 typedef struct {

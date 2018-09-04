@@ -14,6 +14,8 @@ no_modules="--without-http_fastcgi_module
             --without-http_scgi_module
            "
 
+aux_module="--add-module=${src_path}/misc"
+
 modules="ngx_http_ndg_hello_module
          ngx_http_ndg_basic_module
          ngx_http_ndg_advance_module
@@ -40,6 +42,7 @@ done
 
 opts="${prefix}
       ${common_opts}
+      ${aux_module}
       ${http_modules}
       ${stream_modules}
       ${no_modules}
