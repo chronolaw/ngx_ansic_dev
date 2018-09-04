@@ -139,7 +139,8 @@ static ngx_int_t ngx_http_ndg_header_filter(ngx_http_request_t *r)
     return ngx_http_next_header_filter(r);
 }
 
-static ngx_int_t ngx_http_ndg_body_filter(ngx_http_request_t *r, ngx_chain_t *in)
+static ngx_int_t ngx_http_ndg_body_filter(ngx_http_request_t *r,
+    ngx_chain_t *in)
 {
     if (in == NULL) {
         return ngx_http_next_body_filter(r, in);

@@ -7,15 +7,18 @@ static void *ngx_http_ndg_var_create_loc_conf(ngx_conf_t* cf);
 //                ngx_conf_t *cf, void *parent, void *child);
 
 #if 0
-static char *ngx_http_ndg_echo_v(ngx_conf_t *cf, ngx_command_t *cmd, void *conf);
-static char *ngx_http_ndg_echo_cv(ngx_conf_t *cf, ngx_command_t *cmd, void *conf);
+static char *ngx_http_ndg_echo_v(ngx_conf_t *cf,
+    ngx_command_t *cmd, void *conf);
+static char *ngx_http_ndg_echo_cv(ngx_conf_t *cf,
+    ngx_command_t *cmd, void *conf);
 #endif
 
 static ngx_int_t ngx_http_ndg_add_variables(ngx_conf_t *cf);
 static ngx_int_t ngx_http_current_method_variable(ngx_http_request_t *r,
     ngx_http_variable_value_t *v, uintptr_t data);
 
-static char *ngx_http_ndg_complex_value(ngx_conf_t *cf, ngx_command_t *cmd, void *conf);
+static char *ngx_http_ndg_complex_value(ngx_conf_t *cf,
+    ngx_command_t *cmd, void *conf);
 
 static ngx_int_t ngx_http_ndg_var_init(ngx_conf_t* cf);
 static ngx_int_t ngx_http_ndg_var_handler(ngx_http_request_t *r);
@@ -162,7 +165,8 @@ static ngx_int_t ngx_http_ndg_var_init(ngx_conf_t* cf)
     return NGX_OK;
 }
 
-static char *ngx_http_ndg_complex_value(ngx_conf_t *cf, ngx_command_t *cmd, void *conf)
+static char *ngx_http_ndg_complex_value(ngx_conf_t *cf,
+    ngx_command_t *cmd, void *conf)
 {
     ngx_str_t* value = cf->args->elts;
     ngx_http_ndg_var_loc_conf_t* lcf = conf;
@@ -200,7 +204,8 @@ static ngx_int_t ngx_http_ndg_var_handler(ngx_http_request_t *r)
         ngx_http_variable_value_t *vv = ngx_http_get_variable(r, &name, key);
 
         if (vv == NULL || vv->not_found) {
-            ngx_log_error(NGX_LOG_ERR, r->connection->log, 0, "log var %V failed", &name);
+            ngx_log_error(NGX_LOG_ERR, r->connection->log, 0,
+                "log var %V failed", &name);
             return NGX_ERROR;
         }
 
@@ -218,7 +223,8 @@ static ngx_int_t ngx_http_ndg_var_handler(ngx_http_request_t *r)
             return NGX_ERROR;
         }
 
-        ngx_log_error(NGX_LOG_ERR, r->connection->log, 0, "log complex %V ok", &msg);
+        ngx_log_error(NGX_LOG_ERR, r->connection->log, 0,
+            "log complex %V ok", &msg);
     }
 
     return NGX_OK;
@@ -262,7 +268,8 @@ static char *ngx_http_ndg_echo_v(ngx_conf_t *cf, ngx_command_t *cmd, void *conf)
     return NGX_CONF_OK;
 }
 
-static char *ngx_http_ndg_echo_cv(ngx_conf_t *cf, ngx_command_t *cmd, void *conf)
+static char *ngx_http_ndg_echo_cv(ngx_conf_t *cf,
+    ngx_command_t *cmd, void *conf)
 {
     ngx_http_core_loc_conf_t    *clcf;
 
