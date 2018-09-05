@@ -148,6 +148,13 @@ static void ngx_http_ndg_array_test(ngx_http_request_t *r)
         assert(data[i] == i);
     }
 
+    // iterate array with each
+    i = 0;
+    ngx_uint_t *value;
+    ngx_array_each(value, arr) {
+        assert(*value == i++);
+    } ngx_array_loop;
+
     // destroy array
     ngx_array_destroy(arr);
 
