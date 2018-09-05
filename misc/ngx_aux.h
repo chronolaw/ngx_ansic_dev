@@ -3,6 +3,8 @@
 #ifndef _NGX_AUX_H_INCLUDED_
 #define _NGX_AUX_H_INCLUDED_
 
+/* ------------------------------------------------------------------------- */
+
 // ngx_array_t aux
 
 #define ngx_array_nelts(array)                                                \
@@ -17,6 +19,12 @@
 #define ngx_array_capacity(array)                                             \
     ((array)->nalloc)
 
+// usage:
+//    some_type *value;
+//    ngx_array_each(value, array) {
+//        do something ...
+//    } ngx_array_loop;
+
 #define ngx_array_each(elt, array)                                            \
     do {                                                                      \
         void  *_end;                                                          \
@@ -28,7 +36,15 @@
         }                                                                     \
     } while (0)
 
+/* ------------------------------------------------------------------------- */
+
 // ngx_list_t aux
+
+// usage:
+//    some_type *value;
+//    ngx_list_each(value, list) {
+//        do something ...
+//    } ngx_list_loop;
 
 #define ngx_list_each(elt, list)                                              \
     do {                                                                      \
@@ -45,7 +61,29 @@
         }                                                                     \
     } while (0)
 
+/* ------------------------------------------------------------------------- */
+
 // ngx_queue_t aux
+
+// usage:
+//    some_type *value;
+//    ngx_queue_each(value, queue) {
+//        do something ...
+//    } ngx_queue_loop;
+
+#define ngx_queue_each(elt, queue, type, link)                                \
+    do {                                                                      \
+        ngx_queue_t  *_lnk;                                                   \
+                                                                              \
+        for (_lnk = ngx_queue_head(queue);                                    \
+             _lnk != ngx_queue_sentinel(queue);                               \
+             _lnk = nxt_queue_next(_lnk)) {                                   \
+                                                                              \
+            elt = ngx_queue_data(_lnk, type, link);                           \
+
+#define ngx_queue_loop                                                        \
+        }                                                                     \
+    } while(0)
 
 #endif  // _NGX_AUX_H_INCLUDED_
 
