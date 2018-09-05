@@ -2,11 +2,11 @@
 // Author: Chrono Law
 #include "ngx_http_ndg_advance_module.h"
 
-static void *ngx_http_ndg_advance_create_loc_conf(ngx_conf_t* cf);
+static void *ngx_http_ndg_advance_create_loc_conf(ngx_conf_t *cf);
 static char *ngx_http_ndg_advance_merge_loc_conf(
                 ngx_conf_t *cf, void *parent, void *child);
 
-static ngx_int_t ngx_http_ndg_advance_init(ngx_conf_t* cf);
+static ngx_int_t ngx_http_ndg_advance_init(ngx_conf_t *cf);
 static ngx_int_t ngx_http_ndg_advance_handler(ngx_http_request_t *r);
 
 static void ngx_http_ndg_array_test(ngx_http_request_t *r);
@@ -28,14 +28,14 @@ static ngx_command_t ngx_http_ndg_advance_cmds[] =
 
 static ngx_http_module_t ngx_http_ndg_advance_module_ctx =
 {
-    NULL,                                       /*  preconfiguration */
-    ngx_http_ndg_advance_init,                  /*  postconfiguration */
-    NULL,                                       /*  create main configuration */
-    NULL,                                       /*  init main configuration */
-    NULL,                                       /*  create server configuration */
-    NULL,                                       /*  merge server configuration */
-    ngx_http_ndg_advance_create_loc_conf,       /*  create location configuration */
-    ngx_http_ndg_advance_merge_loc_conf,        /*  merge location configuration */
+    NULL,                                  /*  preconfiguration */
+    ngx_http_ndg_advance_init,             /*  postconfiguration */
+    NULL,                                  /*  create main configuration */
+    NULL,                                  /*  init main configuration */
+    NULL,                                  /*  create server configuration */
+    NULL,                                  /*  merge server configuration */
+    ngx_http_ndg_advance_create_loc_conf,  /*  create location configuration */
+    ngx_http_ndg_advance_merge_loc_conf,   /*  merge location configuration */
 };
 
 ngx_module_t ngx_http_ndg_advance_module =
@@ -54,9 +54,9 @@ ngx_module_t ngx_http_ndg_advance_module =
     NGX_MODULE_V1_PADDING
 };
 
-static void *ngx_http_ndg_advance_create_loc_conf(ngx_conf_t* cf)
+static void *ngx_http_ndg_advance_create_loc_conf(ngx_conf_t *cf)
 {
-    ngx_http_ndg_advance_loc_conf_t* conf;
+    ngx_http_ndg_advance_loc_conf_t *conf;
 
     conf = ngx_pcalloc(cf->pool, sizeof(ngx_http_ndg_advance_loc_conf_t));
     if (conf == NULL) {
@@ -71,15 +71,15 @@ static void *ngx_http_ndg_advance_create_loc_conf(ngx_conf_t* cf)
 static char *ngx_http_ndg_advance_merge_loc_conf(
     ngx_conf_t *cf, void *parent, void *child)
 {
-    ngx_http_ndg_advance_loc_conf_t* prev = parent;
-    ngx_http_ndg_advance_loc_conf_t* conf = child;
+    ngx_http_ndg_advance_loc_conf_t *prev = parent;
+    ngx_http_ndg_advance_loc_conf_t *conf = child;
 
     ngx_conf_merge_value(conf->enable, prev->enable, 0);
 
     return NGX_CONF_OK;
 }
 
-static ngx_int_t ngx_http_ndg_advance_init(ngx_conf_t* cf)
+static ngx_int_t ngx_http_ndg_advance_init(ngx_conf_t *cf)
 {
     ngx_http_handler_pt        *h;
     ngx_http_core_main_conf_t  *cmcf;
@@ -98,7 +98,7 @@ static ngx_int_t ngx_http_ndg_advance_init(ngx_conf_t* cf)
 
 static ngx_int_t ngx_http_ndg_advance_handler(ngx_http_request_t *r)
 {
-    ngx_http_ndg_advance_loc_conf_t* lcf;
+    ngx_http_ndg_advance_loc_conf_t *lcf;
 
     lcf = ngx_http_get_module_loc_conf(r, ngx_http_ndg_advance_module);
 
@@ -115,12 +115,13 @@ static ngx_int_t ngx_http_ndg_advance_handler(ngx_http_request_t *r)
 
 static void ngx_http_ndg_array_test(ngx_http_request_t *r)
 {
-    ngx_array_t* arr;
+    ngx_array_t *arr;
 
     // create array
     arr = ngx_array_create(r->pool, 4, sizeof(ngx_uint_t));
     if (arr == NULL) {
-        ngx_log_error(NGX_LOG_ERR, r->connection->log, 0, "ngx_array_create failed");
+        ngx_log_error(
+            NGX_LOG_ERR, r->connection->log, 0, "ngx_array_create failed");
         return;
     }
 
@@ -129,12 +130,13 @@ static void ngx_http_ndg_array_test(ngx_http_request_t *r)
     assert(arr->nalloc == 4);
 
     // push to array
-    ngx_uint_t i;
-    ngx_uint_t* p;
+    ngx_uint_t  i;
+    ngx_uint_t *p;
     for (i = 0; i < 3; ++i) {
         p = ngx_array_push(arr);
         if (p == NULL) {
-            ngx_log_error(NGX_LOG_ERR, r->connection->log, 0, "ngx_array_push failed");
+            ngx_log_error(
+                NGX_LOG_ERR, r->connection->log, 0, "ngx_array_push failed");
             return;
         }
 
@@ -143,7 +145,7 @@ static void ngx_http_ndg_array_test(ngx_http_request_t *r)
     assert(arr->nelts == 3);
 
     // iterate array
-    ngx_uint_t* data = arr->elts;
+    ngx_uint_t *data = arr->elts;
     for (i = 0; i < arr->nelts; ++i) {
         assert(data[i] == i);
     }
@@ -163,11 +165,12 @@ static void ngx_http_ndg_array_test(ngx_http_request_t *r)
 
 static void ngx_http_ndg_list_test(ngx_http_request_t *r)
 {
-    ngx_list_t* ls;
+    ngx_list_t *ls;
 
     ls = ngx_list_create(r->pool, 2, sizeof(ngx_uint_t));
     if (ls == NULL) {
-        ngx_log_error(NGX_LOG_ERR, r->connection->log, 0, "ngx_list_create failed");
+        ngx_log_error(
+            NGX_LOG_ERR, r->connection->log, 0, "ngx_list_create failed");
         return;
     }
 
@@ -178,11 +181,12 @@ static void ngx_http_ndg_list_test(ngx_http_request_t *r)
 
     // push to list
     ngx_uint_t i;
-    ngx_uint_t* p;
+    ngx_uint_t *p;
     for (i = 0; i < 5; ++i) {
         p = ngx_list_push(ls);
         if (p == NULL) {
-            ngx_log_error(NGX_LOG_ERR, r->connection->log, 0, "ngx_list_push failed");
+            ngx_log_error(
+                NGX_LOG_ERR, r->connection->log, 0, "ngx_list_push failed");
             return;
         }
 
@@ -193,8 +197,8 @@ static void ngx_http_ndg_list_test(ngx_http_request_t *r)
     assert(ls->part.next != NULL);
 
     //ngx_uint_t i;
-    ngx_list_part_t* part;
-    ngx_uint_t* data;
+    ngx_list_part_t *part;
+    ngx_uint_t      *data;
 
     for (part = &ls->part;part;part = part->next) {
         data = part->elts;
@@ -203,7 +207,7 @@ static void ngx_http_ndg_list_test(ngx_http_request_t *r)
         }
     }
 
-    // use macro each-loop
+    // use macro each loop
     ngx_uint_t *value;
     ngx_list_each(value, ls) {
         ngx_log_error(NGX_LOG_ERR, r->connection->log, 0, "elt = %ud", *value);
