@@ -77,7 +77,7 @@
                                                                               \
         for (_lnk = ngx_queue_head(queue);                                    \
              _lnk != ngx_queue_sentinel(queue);                               \
-             _lnk = nxt_queue_next(_lnk)) {                                   \
+             _lnk = ngx_queue_next(_lnk)) {                                   \
                                                                               \
             elt = ngx_queue_data(_lnk, type, link);                           \
 
