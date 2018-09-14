@@ -1,16 +1,18 @@
 // Copyright (c) 2018
 // Author: Chrono Law
+#include <ngx_murmurhash.h>
 #include "ngx_http_ndg_basic_module.h"
 
-static void *ngx_http_ndg_basic_create_loc_conf(ngx_conf_t* cf);
+static void *ngx_http_ndg_basic_create_loc_conf(ngx_conf_t *cf);
 static char *ngx_http_ndg_basic_merge_loc_conf(
                 ngx_conf_t *cf, void *parent, void *child);
 
-static ngx_int_t ngx_http_ndg_basic_init(ngx_conf_t* cf);
+static ngx_int_t ngx_http_ndg_basic_init(ngx_conf_t *cf);
 static ngx_int_t ngx_http_ndg_basic_handler(ngx_http_request_t *r);
 
 static void ngx_http_ndg_string_test(ngx_http_request_t *r);
 static void ngx_http_ndg_time_test(ngx_http_request_t *r);
+static void ngx_http_ndg_hash_test(ngx_http_request_t *r);
 
 static ngx_command_t ngx_http_ndg_basic_cmds[] =
 {
@@ -54,9 +56,9 @@ ngx_module_t ngx_http_ndg_basic_module =
     NGX_MODULE_V1_PADDING
 };
 
-static void *ngx_http_ndg_basic_create_loc_conf(ngx_conf_t* cf)
+static void *ngx_http_ndg_basic_create_loc_conf(ngx_conf_t *cf)
 {
-    ngx_http_ndg_basic_loc_conf_t* conf;
+    ngx_http_ndg_basic_loc_conf_t *conf;
 
     conf = ngx_pcalloc(cf->pool, sizeof(ngx_http_ndg_basic_loc_conf_t));
     if (conf == NULL) {
@@ -71,15 +73,15 @@ static void *ngx_http_ndg_basic_create_loc_conf(ngx_conf_t* cf)
 static char *ngx_http_ndg_basic_merge_loc_conf(
     ngx_conf_t *cf, void *parent, void *child)
 {
-    ngx_http_ndg_basic_loc_conf_t* prev = parent;
-    ngx_http_ndg_basic_loc_conf_t* conf = child;
+    ngx_http_ndg_basic_loc_conf_t *prev = parent;
+    ngx_http_ndg_basic_loc_conf_t *conf = child;
 
     ngx_conf_merge_value(conf->enable, prev->enable, 0);
 
     return NGX_CONF_OK;
 }
 
-static ngx_int_t ngx_http_ndg_basic_init(ngx_conf_t* cf)
+static ngx_int_t ngx_http_ndg_basic_init(ngx_conf_t *cf)
 {
     ngx_http_handler_pt        *h;
     ngx_http_core_main_conf_t  *cmcf;
@@ -98,7 +100,7 @@ static ngx_int_t ngx_http_ndg_basic_init(ngx_conf_t* cf)
 
 static ngx_int_t ngx_http_ndg_basic_handler(ngx_http_request_t *r)
 {
-    ngx_http_ndg_basic_loc_conf_t* lcf;
+    ngx_http_ndg_basic_loc_conf_t *lcf;
 
     lcf = ngx_http_get_module_loc_conf(r, ngx_http_ndg_basic_module);
 
@@ -106,6 +108,7 @@ static ngx_int_t ngx_http_ndg_basic_handler(ngx_http_request_t *r)
 
         ngx_http_ndg_string_test(r);
         ngx_http_ndg_time_test(r);
+        ngx_http_ndg_hash_test(r);
 
         ngx_log_error(NGX_LOG_ERR, r->connection->log, 0, "basic ok");
     }
@@ -148,4 +151,35 @@ static void ngx_http_ndg_time_test(ngx_http_request_t *r)
     //assert(msec == now->sec * 1000 + now->msec);
 
     ngx_log_error(NGX_LOG_ERR, r->connection->log, 0, "ngx_time ok");
+}
+
+static void ngx_http_ndg_hash_test(ngx_http_request_t *r)
+{
+    ngx_uint_t  i;
+    ngx_msec_t  msec;
+    ngx_str_t   str = ngx_string("12345678901234567890123456789012");
+
+    ngx_time_update();
+    msec = ngx_current_msec;
+
+    for(i = 0; i < 100*1000; i++) {
+        ngx_crc32_short(str.data, str.len);
+    }
+
+    ngx_time_update();
+    ngx_log_error(
+        NGX_LOG_ERR, r->connection->log, 0,
+        "crc time = %ud", ngx_current_msec - msec);
+
+    msec = ngx_current_msec;
+
+    for(i = 0; i < 100*1000; i++) {
+        ngx_murmur_hash2(str.data, str.len);
+    }
+
+    ngx_time_update();
+    ngx_log_error(
+        NGX_LOG_ERR, r->connection->log, 0,
+        "mur time = %ud", ngx_current_msec - msec);
+
 }
