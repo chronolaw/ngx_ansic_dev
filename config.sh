@@ -40,11 +40,14 @@ do
     stream_modules="${stream_modules} --add-module=${src_path}/stream/${m} "
 done
 
+misc_modules="--add-module=${src_path}/misc"
+
 opts="${prefix}
       ${common_opts}
       ${aux_module}
       ${http_modules}
       ${stream_modules}
+      ${misc_modules}
       ${no_modules}
       "
 
