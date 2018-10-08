@@ -4,7 +4,7 @@ ngx_addon_name=ngx_aux_incs
 # for include
 CORE_INCS="$CORE_INCS $ngx_addon_dir"
 
-ngx_module_type=MISC
+ngx_module_type=CORE
 ngx_module_incs="$ngx_addon_dir"
 
 . auto/module
