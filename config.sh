@@ -8,6 +8,7 @@ cc_opt="-g -O0"
 
 prefix="--prefix=/opt/nginx"
 common_opts="--with-threads --with-pcre-jit"
+debug_opts="--with-debug"
 
 no_modules="--without-http_fastcgi_module
             --without-http_uwsgi_module
@@ -44,6 +45,7 @@ misc_modules="--add-module=${src_path}/misc"
 
 opts="${prefix}
       ${common_opts}
+      ${debug_opts}
       ${aux_module}
       ${http_modules}
       ${stream_modules}
