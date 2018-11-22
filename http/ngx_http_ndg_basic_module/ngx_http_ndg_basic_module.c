@@ -11,6 +11,7 @@ static ngx_int_t ngx_http_ndg_basic_init(ngx_conf_t *cf);
 static ngx_int_t ngx_http_ndg_basic_handler(ngx_http_request_t *r);
 
 static void ngx_http_ndg_int_test(ngx_http_request_t *r);
+static ngx_int_t ngx_http_ndg_pool_test(ngx_http_request_t *r);
 static void ngx_http_ndg_string_test(ngx_http_request_t *r);
 static void ngx_http_ndg_time_test(ngx_http_request_t *r);
 static void ngx_http_ndg_hash_test(ngx_http_request_t *r);
@@ -108,6 +109,7 @@ static ngx_int_t ngx_http_ndg_basic_handler(ngx_http_request_t *r)
     if (lcf->enable) {
 
         ngx_http_ndg_int_test(r);
+        ngx_http_ndg_pool_test(r);
         ngx_http_ndg_string_test(r);
         ngx_http_ndg_time_test(r);
         ngx_http_ndg_hash_test(r);
@@ -138,10 +140,33 @@ static void ngx_http_ndg_int_test(ngx_http_request_t *r)
     ngx_log_error(NGX_LOG_ERR, r->connection->log, 0, "ngx int ok");
 }
 
+static ngx_int_t ngx_http_ndg_pool_test(ngx_http_request_t *r)
+{
+    void        *ptr;
+    ngx_pool_t  *pool = ngx_cycle->pool;
+
+    ptr = ngx_pcalloc(pool, NGX_PTR_SIZE * 10);
+    if (ptr == NULL) {
+        return NGX_ERROR;
+    }
+
+    ptr = ngx_pmemalign(pool, 5000, 64);
+    if (ptr == NULL) {
+        return NGX_ABORT;
+    }
+
+    ngx_pfree(pool, ptr);
+
+    ngx_log_error(NGX_LOG_ERR, r->connection->log, 0, "ngx pool ok");
+
+    return NGX_OK;
+}
+
 static void ngx_http_ndg_string_test(ngx_http_request_t *r)
 {
     ngx_str_t s1 = ngx_null_string;
     ngx_str_t s2 = ngx_string("matrix");
+    ngx_str_t s3 = ngx_string(NGINX_VER);
 
     assert(s1.data == NULL && s1.len == 0);
     assert(s2.data && s2.len == 6);
@@ -153,8 +178,23 @@ static void ngx_http_ndg_string_test(ngx_http_request_t *r)
     assert(s2.data == NULL && s2.len == 0);
 
     // strcmp
+    assert(ngx_strcmp(s1.data, s3.data) > 0);
+    assert(ngx_strnstr(s3.data, "nginx", 10));
+
+    // aoti
+    ngx_str_t s4 = ngx_string("256");
+    ngx_str_t s5 = ngx_string("A0");
+    assert(ngx_atoi(s4.data, s4.len) == 256);
+    assert(ngx_hextoi(s5.data, s5.len) == 0xa0);
+
+    // strdup
+    s2.data = ngx_pstrdup(ngx_cycle->pool, &s1);
+    s2.len = s1.len;
+    assert(ngx_strncmp(s1.data, s2.data, s1.len) == 0);
 
     // sprintf
+    s2.len = ngx_snprintf(s2.data, s2.len, "hello") - s2.data;
+    assert(s2.len == 5);
 
     ngx_log_error(NGX_LOG_ERR, r->connection->log, 0, "ngx_str ok");
 }
