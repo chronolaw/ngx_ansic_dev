@@ -1,6 +1,8 @@
 // Copyright (c) 2018
 // Author: Chrono Law
-#include <ngx_murmurhash.h>
+#include <ngx_md5.h>
+#include <ngx_sha1.h>
+
 #include "ngx_http_ndg_basic_module.h"
 
 static void *ngx_http_ndg_basic_create_loc_conf(ngx_conf_t *cf);
@@ -256,6 +258,21 @@ static void ngx_http_ndg_log_test(ngx_http_request_t *r)
 
 static void ngx_http_ndg_hash_test(ngx_http_request_t *r)
 {
+    ngx_md5_t   md5;
+    //u_char      buf[16];
+    u_char      buf[20];
+
+    ngx_md5_init(&md5);
+    ngx_md5_update(&md5, "metroid", 7);
+    ngx_md5_final(buf, &md5);
+
+    ngx_sha1_t  sha;
+
+    ngx_sha1_init(&sha);
+    ngx_sha1_update(&sha, "prime", 5);
+    ngx_sha1_final(buf, &sha);
+
+#if 0
     ngx_uint_t  i;
     ngx_msec_t  msec;
     ngx_str_t   str = ngx_string("12345678901234567890123456789012");
@@ -269,8 +286,8 @@ static void ngx_http_ndg_hash_test(ngx_http_request_t *r)
 
     ngx_time_update();
     ngx_log_error(
-        NGX_LOG_ERR, r->connection->log, 0,
-        "crc time = %ud", ngx_current_msec - msec);
+            NGX_LOG_ERR, r->connection->log, 0,
+            "crc time = %ud", ngx_current_msec - msec);
 
     msec = ngx_current_msec;
 
@@ -280,9 +297,9 @@ static void ngx_http_ndg_hash_test(ngx_http_request_t *r)
 
     ngx_time_update();
     ngx_log_error(
-        NGX_LOG_ERR, r->connection->log, 0,
-        "mur time = %ud", ngx_current_msec - msec);
-
+            NGX_LOG_ERR, r->connection->log, 0,
+            "mur time = %ud", ngx_current_msec - msec);
+#endif
 }
 
 static void ngx_http_ndg_code_test(ngx_http_request_t *r)
