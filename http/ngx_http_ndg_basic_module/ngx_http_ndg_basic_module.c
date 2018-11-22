@@ -258,6 +258,10 @@ static void ngx_http_ndg_log_test(ngx_http_request_t *r)
 
 static void ngx_http_ndg_hash_test(ngx_http_request_t *r)
 {
+    uint32_t key;
+
+    ngx_murmur_hash2("heroes", 6);
+
     ngx_md5_t   md5;
     //u_char      buf[16];
     u_char      buf[20];
