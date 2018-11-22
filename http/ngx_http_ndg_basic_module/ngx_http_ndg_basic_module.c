@@ -10,6 +10,7 @@ static char *ngx_http_ndg_basic_merge_loc_conf(
 static ngx_int_t ngx_http_ndg_basic_init(ngx_conf_t *cf);
 static ngx_int_t ngx_http_ndg_basic_handler(ngx_http_request_t *r);
 
+static void ngx_http_ndg_int_test(ngx_http_request_t *r);
 static void ngx_http_ndg_string_test(ngx_http_request_t *r);
 static void ngx_http_ndg_time_test(ngx_http_request_t *r);
 static void ngx_http_ndg_hash_test(ngx_http_request_t *r);
@@ -106,6 +107,7 @@ static ngx_int_t ngx_http_ndg_basic_handler(ngx_http_request_t *r)
 
     if (lcf->enable) {
 
+        ngx_http_ndg_int_test(r);
         ngx_http_ndg_string_test(r);
         ngx_http_ndg_time_test(r);
         ngx_http_ndg_hash_test(r);
@@ -114,6 +116,26 @@ static ngx_int_t ngx_http_ndg_basic_handler(ngx_http_request_t *r)
     }
 
     return NGX_DECLINED;
+}
+
+// test cases below
+
+static void ngx_http_ndg_int_test(ngx_http_request_t *r)
+{
+    size_t      a = 0;
+    ngx_uint_t  b = NGX_CONF_UNSET_UINT;
+    ngx_msec_t  c = NGX_CONF_UNSET_MSEC;
+
+    ngx_conf_init_size_value(a, 1024);
+    assert(a == 0);
+
+    ngx_conf_init_uint_value(b, 256);
+    assert(b == 256);
+
+    ngx_conf_merge_msec_value(c, 10, 100);
+    assert(c == 10);
+
+    ngx_log_error(NGX_LOG_ERR, r->connection->log, 0, "ngx int ok");
 }
 
 static void ngx_http_ndg_string_test(ngx_http_request_t *r)
