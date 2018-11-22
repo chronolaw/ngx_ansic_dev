@@ -214,7 +214,7 @@ static void ngx_http_ndg_time_test(ngx_http_request_t *r)
     time_t sec = ngx_time();
 
     assert(now->sec == sec);
-    assert(now->gmtoff == 8 * 60);
+    //assert(now->gmtoff == 8 * 60);
 
     ngx_time_update();
 
