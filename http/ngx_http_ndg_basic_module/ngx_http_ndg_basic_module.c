@@ -14,7 +14,10 @@ static void ngx_http_ndg_int_test(ngx_http_request_t *r);
 static ngx_int_t ngx_http_ndg_pool_test(ngx_http_request_t *r);
 static void ngx_http_ndg_string_test(ngx_http_request_t *r);
 static void ngx_http_ndg_time_test(ngx_http_request_t *r);
+static void ngx_http_ndg_date_test(ngx_http_request_t *r);
+static void ngx_http_ndg_log_test(ngx_http_request_t *r);
 static void ngx_http_ndg_hash_test(ngx_http_request_t *r);
+static void ngx_http_ndg_code_test(ngx_http_request_t *r);
 
 static ngx_command_t ngx_http_ndg_basic_cmds[] =
 {
@@ -112,7 +115,10 @@ static ngx_int_t ngx_http_ndg_basic_handler(ngx_http_request_t *r)
         ngx_http_ndg_pool_test(r);
         ngx_http_ndg_string_test(r);
         ngx_http_ndg_time_test(r);
+        ngx_http_ndg_date_test(r);
+        ngx_http_ndg_log_test(r);
         ngx_http_ndg_hash_test(r);
+        ngx_http_ndg_code_test(r);
 
         ngx_log_error(NGX_LOG_ERR, r->connection->log, 0, "basic ok");
     }
@@ -201,18 +207,51 @@ static void ngx_http_ndg_string_test(ngx_http_request_t *r)
 
 static void ngx_http_ndg_time_test(ngx_http_request_t *r)
 {
-    time_t sec = ngx_time();
-    ngx_time_t* now = ngx_timeofday();
+    ngx_time_t *now = ngx_timeofday();
     ngx_msec_t msec = ngx_current_msec;
+    time_t sec = ngx_time();
 
     assert(now->sec == sec);
     assert(now->gmtoff == 8 * 60);
+
+    ngx_time_update();
 
     // ngx_monotonic_time
     (void) msec;
     //assert(msec == now->sec * 1000 + now->msec);
 
     ngx_log_error(NGX_LOG_ERR, r->connection->log, 0, "ngx_time ok");
+}
+
+static void ngx_http_ndg_date_test(ngx_http_request_t *r)
+{
+    time_t   t, t2;
+    ngx_tm_t tm;
+
+    t = ngx_time();
+    ngx_localtime(t, &tm);
+
+    assert(tm.tm_year >= 2018);
+
+    u_char buf[100];
+    *ngx_http_time(buf, t) = '\0';
+    printf("%s", (char*)buf);
+
+    t2 = ngx_parse_http_time(buf, ngx_strlen(buf));
+    assert(t == t2);
+}
+
+static void ngx_http_ndg_log_test(ngx_http_request_t *r)
+{
+    ngx_log_t *log;
+    log = ngx_cycle->log;
+
+    ngx_log_error(NGX_LOG_DEBUG, log, 0, "debug");
+    ngx_log_error(NGX_LOG_INFO, log, 0, "hello");
+    ngx_log_error(NGX_LOG_NOTICE, log, 0, "check it");
+    ngx_log_error(NGX_LOG_WARN, log, 0, "warning");
+    ngx_log_error(NGX_LOG_ERR, log, 0, "error accured");
+    //ngx_log_error(NGX_LOG_ALERT, log, 0, "ALERT!!");
 }
 
 static void ngx_http_ndg_hash_test(ngx_http_request_t *r)
@@ -244,4 +283,25 @@ static void ngx_http_ndg_hash_test(ngx_http_request_t *r)
         NGX_LOG_ERR, r->connection->log, 0,
         "mur time = %ud", ngx_current_msec - msec);
 
+}
+
+static void ngx_http_ndg_code_test(ngx_http_request_t *r)
+{
+    ngx_str_t src = ngx_string("mario");
+    ngx_str_t dst;
+
+    dst.len = ngx_base64_encoded_length(src.len);
+    dst.data = ngx_palloc(ngx_cycle->pool, dst.len);
+
+    ngx_encode_base64(&dst, &src);
+    ngx_encode_base64url(&dst, &src);
+
+    ngx_str_t html = ngx_string("<html>");
+    ngx_str_t out;
+
+    out.len = html.len +
+        ngx_escape_html(NULL, html.data, html.len);
+    out.data = ngx_palloc(ngx_cycle->pool, out.len);
+
+    ngx_escape_html(out.data, html.data, html.len);
 }
