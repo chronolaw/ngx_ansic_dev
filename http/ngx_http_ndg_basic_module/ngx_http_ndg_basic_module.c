@@ -204,7 +204,7 @@ static void ngx_http_ndg_string_test(ngx_http_request_t *r)
     s2.len = ngx_snprintf(s2.data, s2.len, "hello") - s2.data;
     assert(s2.len == 5);
 
-    ngx_log_error(NGX_LOG_ERR, r->connection->log, 0, "ngx_str ok");
+    ngx_log_error(NGX_LOG_ERR, r->connection->log, 0, "ngx str ok");
 }
 
 static void ngx_http_ndg_time_test(ngx_http_request_t *r)
@@ -222,7 +222,7 @@ static void ngx_http_ndg_time_test(ngx_http_request_t *r)
     (void) msec;
     //assert(msec == now->sec * 1000 + now->msec);
 
-    ngx_log_error(NGX_LOG_ERR, r->connection->log, 0, "ngx_time ok");
+    ngx_log_error(NGX_LOG_ERR, r->connection->log, 0, "ngx time ok");
 }
 
 static void ngx_http_ndg_date_test(ngx_http_request_t *r)
@@ -241,6 +241,8 @@ static void ngx_http_ndg_date_test(ngx_http_request_t *r)
 
     t2 = ngx_parse_http_time(buf, ngx_strlen(buf));
     assert(t == t2);
+
+    ngx_log_error(NGX_LOG_ERR, r->connection->log, 0, "ngx date ok");
 }
 
 static void ngx_http_ndg_log_test(ngx_http_request_t *r)
@@ -279,6 +281,7 @@ static void ngx_http_ndg_hash_test(ngx_http_request_t *r)
     ngx_sha1_update(&sha, "prime", 5);
     ngx_sha1_final(buf, &sha);
 
+    ngx_log_error(NGX_LOG_ERR, r->connection->log, 0, "ngx hash ok");
 #if 0
     ngx_uint_t  i;
     ngx_msec_t  msec;
@@ -328,4 +331,6 @@ static void ngx_http_ndg_code_test(ngx_http_request_t *r)
     out.data = ngx_palloc(ngx_cycle->pool, out.len);
 
     ngx_escape_html(out.data, html.data, html.len);
+
+    ngx_log_error(NGX_LOG_ERR, r->connection->log, 0, "ngx code ok");
 }
