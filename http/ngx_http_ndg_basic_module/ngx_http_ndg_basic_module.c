@@ -277,9 +277,9 @@ static void ngx_http_ndg_hash_test(ngx_http_request_t *r)
 
     // murmur
 
-    ngx_str_t str = ngx_string("heroes");
-
-    key = ngx_murmur_hash2(str.data, str.len);
+    //ngx_str_t str = ngx_string("heroes");
+    //key = ngx_murmur_hash2(str.data, str.len);
+    key = ngx_murmur_hash2((u_char*)"heroes", 6);
 
     // md5
     ngx_md5_t   md5;
