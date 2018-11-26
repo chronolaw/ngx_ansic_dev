@@ -260,13 +260,28 @@ static void ngx_http_ndg_log_test(ngx_http_request_t *r)
 
 static void ngx_http_ndg_hash_test(ngx_http_request_t *r)
 {
-    uint32_t key;
+    uint32_t key, hash1, hash2;
+    ngx_str_t s = ngx_string("abcd");
+
+    //crc32
+    hash1 = ngx_crc32_short(s.data, s.len);
+    hash2 = ngx_crc32_long(s.data, s.len);
+    assert(hash1 == hash2);
+
+    ngx_crc32_init(key);
+    ngx_crc32_update(&key, s.data, 3);
+    ngx_crc32_update(&key, s.data+3, 1);
+    ngx_crc32_final(key);
+
+    assert(key == hash1);
+
+    // murmur
+
     ngx_str_t str = ngx_string("heroes");
 
     key = ngx_murmur_hash2(str.data, str.len);
 
-    (void) key;
-
+    // md5
     ngx_md5_t   md5;
     //u_char      buf[16];
     u_char      buf[20];
@@ -275,6 +290,7 @@ static void ngx_http_ndg_hash_test(ngx_http_request_t *r)
     ngx_md5_update(&md5, "metroid", 7);
     ngx_md5_final(buf, &md5);
 
+    // sha1
     ngx_sha1_t  sha;
 
     ngx_sha1_init(&sha);
