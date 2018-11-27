@@ -222,9 +222,36 @@ static void ngx_http_ndg_list_test(ngx_http_request_t *r)
     ngx_log_error(NGX_LOG_ERR, r->connection->log, 0, "ngx list ok");
 }
 
+typedef struct {
+    int         x;
+    ngx_queue_t queue;
+} info_node_t;
+
 static void ngx_http_ndg_queue_test(ngx_http_request_t *r)
 {
     //ngx_pool_t  *pool = ngx_cycle->pool;
+    ngx_queue_t     h;
+
+    ngx_queue_init(&h);
+    assert(ngx_queue_empty(&h));
+
+    info_node_t     nodes[3];
+    nodes[0].x = 100;
+    nodes[1].x = 200;
+    nodes[2].x = 300;
+
+    ngx_queue_insert_head(&h, &nodes[0].queue);
+    ngx_queue_insert_tail(&h, &nodes[1].queue);
+    ngx_queue_insert_tail(&h, &nodes[2].queue);
+
+    info_node_t *n;
+    //ngx_queue_t *q;
+
+    n = ngx_queue_data(ngx_queue_head(&h), info_node_t, queue);
+    assert(n->x == 100);
+    n = ngx_queue_data(ngx_queue_last(&h), info_node_t, queue);
+    assert(n->x == 300);
+
 
     ngx_log_error(NGX_LOG_ERR, r->connection->log, 0, "ngx queue ok");
 }
