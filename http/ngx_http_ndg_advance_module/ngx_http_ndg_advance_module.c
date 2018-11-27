@@ -115,28 +115,29 @@ static ngx_int_t ngx_http_ndg_advance_handler(ngx_http_request_t *r)
 
 static void ngx_http_ndg_array_test(ngx_http_request_t *r)
 {
+    ngx_pool_t  *pool = ngx_cycle->pool;
     ngx_array_t *arr;
 
     // create array
-    arr = ngx_array_create(r->pool, 4, sizeof(ngx_uint_t));
+    arr = ngx_array_create(pool, 2, sizeof(ngx_uint_t));
     if (arr == NULL) {
         ngx_log_error(
-            NGX_LOG_ERR, r->connection->log, 0, "ngx_array_create failed");
+            NGX_LOG_ERR, ngx_cycle->log, 0, "ngx_array_create failed");
         return;
     }
 
     assert(arr->nelts == 0);
     assert(arr->size == sizeof(ngx_uint_t));
-    assert(arr->nalloc == 4);
+    assert(arr->nalloc == 2);
 
     // push to array
     ngx_uint_t  i;
     ngx_uint_t *p;
-    for (i = 0; i < 3; ++i) {
+    for (i = 0; i < 3; i++) {
         p = ngx_array_push(arr);
         if (p == NULL) {
             ngx_log_error(
-                NGX_LOG_ERR, r->connection->log, 0, "ngx_array_push failed");
+                NGX_LOG_ERR, ngx_cycle->log, 0, "ngx_array_push failed");
             return;
         }
 
@@ -145,9 +146,9 @@ static void ngx_http_ndg_array_test(ngx_http_request_t *r)
     assert(arr->nelts == 3);
 
     // iterate array
-    ngx_uint_t *data = arr->elts;
-    for (i = 0; i < arr->nelts; ++i) {
-        assert(data[i] == i);
+    ngx_uint_t *values = arr->elts;
+    for (i = 0; i < arr->nelts; i++) {
+        assert(values[i] == i);
     }
 
     // iterate array with each
@@ -157,6 +158,8 @@ static void ngx_http_ndg_array_test(ngx_http_request_t *r)
         assert(*value == i++);
     } ngx_array_loop;
 
+    ngx_array_init(arr, pool, 10, sizeof(ngx_str_t));
+
     // destroy array
     ngx_array_destroy(arr);
 
@@ -165,12 +168,13 @@ static void ngx_http_ndg_array_test(ngx_http_request_t *r)
 
 static void ngx_http_ndg_list_test(ngx_http_request_t *r)
 {
+    ngx_pool_t  *pool = ngx_cycle->pool;
     ngx_list_t *ls;
 
-    ls = ngx_list_create(r->pool, 2, sizeof(ngx_uint_t));
+    ls = ngx_list_create(pool, 2, sizeof(ngx_uint_t));
     if (ls == NULL) {
         ngx_log_error(
-            NGX_LOG_ERR, r->connection->log, 0, "ngx_list_create failed");
+            NGX_LOG_ERR, ngx_cycle->log, 0, "ngx_list_create failed");
         return;
     }
 
@@ -182,11 +186,11 @@ static void ngx_http_ndg_list_test(ngx_http_request_t *r)
     // push to list
     ngx_uint_t i;
     ngx_uint_t *p;
-    for (i = 0; i < 5; ++i) {
+    for (i = 0; i < 5; i++) {
         p = ngx_list_push(ls);
         if (p == NULL) {
             ngx_log_error(
-                NGX_LOG_ERR, r->connection->log, 0, "ngx_list_push failed");
+                NGX_LOG_ERR, ngx_cycle->log, 0, "ngx_list_push failed");
             return;
         }
 
@@ -202,7 +206,7 @@ static void ngx_http_ndg_list_test(ngx_http_request_t *r)
 
     for (part = &ls->part;part;part = part->next) {
         data = part->elts;
-        for (i = 0;i < part->nelts; ++i) {
+        for (i = 0;i < part->nelts; i++) {
             assert(data[i] == i);
         }
     }
