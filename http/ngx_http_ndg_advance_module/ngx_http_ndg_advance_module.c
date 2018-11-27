@@ -11,6 +11,7 @@ static ngx_int_t ngx_http_ndg_advance_handler(ngx_http_request_t *r);
 
 static void ngx_http_ndg_array_test(ngx_http_request_t *r);
 static void ngx_http_ndg_list_test(ngx_http_request_t *r);
+static void ngx_http_ndg_queue_test(ngx_http_request_t *r);
 
 static ngx_command_t ngx_http_ndg_advance_cmds[] =
 {
@@ -106,6 +107,7 @@ static ngx_int_t ngx_http_ndg_advance_handler(ngx_http_request_t *r)
 
         ngx_http_ndg_array_test(r);
         ngx_http_ndg_list_test(r);
+        ngx_http_ndg_queue_test(r);
 
         ngx_log_error(NGX_LOG_ERR, r->connection->log, 0, "advance ok");
     }
@@ -163,7 +165,7 @@ static void ngx_http_ndg_array_test(ngx_http_request_t *r)
     // destroy array
     ngx_array_destroy(arr);
 
-    ngx_log_error(NGX_LOG_ERR, r->connection->log, 0, "ngx_array ok");
+    ngx_log_error(NGX_LOG_ERR, r->connection->log, 0, "ngx array ok");
 }
 
 static void ngx_http_ndg_list_test(ngx_http_request_t *r)
@@ -217,5 +219,12 @@ static void ngx_http_ndg_list_test(ngx_http_request_t *r)
         ngx_log_error(NGX_LOG_ERR, r->connection->log, 0, "elt = %ud", *value);
     } ngx_list_loop;
 
-    ngx_log_error(NGX_LOG_ERR, r->connection->log, 0, "ngx_list ok");
+    ngx_log_error(NGX_LOG_ERR, r->connection->log, 0, "ngx list ok");
+}
+
+static void ngx_http_ndg_queue_test(ngx_http_request_t *r)
+{
+    //ngx_pool_t  *pool = ngx_cycle->pool;
+
+    ngx_log_error(NGX_LOG_ERR, r->connection->log, 0, "ngx queue ok");
 }
