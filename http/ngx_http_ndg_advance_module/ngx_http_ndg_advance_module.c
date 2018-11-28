@@ -165,7 +165,7 @@ static void ngx_http_ndg_array_test(ngx_http_request_t *r)
     // destroy array
     ngx_array_destroy(arr);
 
-    ngx_log_error(NGX_LOG_ERR, r->connection->log, 0, "ngx array ok");
+    ngx_log_error(NGX_LOG_ERR, ngx_cycle->log, 0, "ngx array ok");
 }
 
 static void ngx_http_ndg_list_test(ngx_http_request_t *r)
@@ -216,42 +216,61 @@ static void ngx_http_ndg_list_test(ngx_http_request_t *r)
     // use macro each loop
     ngx_uint_t *value;
     ngx_list_each(value, ls) {
-        ngx_log_error(NGX_LOG_ERR, r->connection->log, 0, "elt = %ud", *value);
+        ngx_log_error(NGX_LOG_ERR, ngx_cycle->log, 0, "elt = %ud", *value);
     } ngx_list_loop;
 
-    ngx_log_error(NGX_LOG_ERR, r->connection->log, 0, "ngx list ok");
+    ngx_log_error(NGX_LOG_ERR, ngx_cycle->log, 0, "ngx list ok");
 }
 
 typedef struct {
     int         x;
-    ngx_queue_t queue;
+    ngx_queue_t link;
 } info_node_t;
 
 static void ngx_http_ndg_queue_test(ngx_http_request_t *r)
 {
-    //ngx_pool_t  *pool = ngx_cycle->pool;
+    ngx_uint_t  i;
+    info_node_t *n;
+    ngx_pool_t  *pool = ngx_cycle->pool;
     ngx_queue_t     h;
 
     ngx_queue_init(&h);
     assert(ngx_queue_empty(&h));
 
-    info_node_t     nodes[3];
-    nodes[0].x = 100;
-    nodes[1].x = 200;
-    nodes[2].x = 300;
+    for(i = 0; i < 3; i++) {
+        n = ngx_pcalloc(pool, sizeof(info_node_t));
+        if (n == NULL) {
+            ngx_log_error(
+                NGX_LOG_ERR, ngx_cycle->log, 0, "ngx_pcalloc failed");
+            return;
+        }
 
-    ngx_queue_insert_head(&h, &nodes[0].queue);
-    ngx_queue_insert_tail(&h, &nodes[1].queue);
-    ngx_queue_insert_tail(&h, &nodes[2].queue);
+        n->x = i;
 
-    info_node_t *n;
-    //ngx_queue_t *q;
+        ngx_queue_insert_tail(&h, &n->link);
+    }
 
-    n = ngx_queue_data(ngx_queue_head(&h), info_node_t, queue);
-    assert(n->x == 100);
-    n = ngx_queue_data(ngx_queue_last(&h), info_node_t, queue);
-    assert(n->x == 300);
+    n = ngx_queue_data(ngx_queue_head(&h), info_node_t, link);
+    assert(n->x == 0);
+    n = ngx_queue_data(ngx_queue_last(&h), info_node_t, link);
+    assert(n->x == 2);
 
+    n = ngx_pcalloc(pool, sizeof(info_node_t));
+    n->x = 3;
+    ngx_queue_insert_head(&h, &n->link);
 
-    ngx_log_error(NGX_LOG_ERR, r->connection->log, 0, "ngx queue ok");
+    // iterate
+    ngx_queue_t *q;
+    for(q = ngx_queue_head(&h);
+        q != ngx_queue_sentinel(&h);
+        q = ngx_queue_next(q)) {
+
+        n = ngx_queue_data(q, info_node_t, link);
+        printf("%d", n->x);
+    }
+
+    q = ngx_queue_last(&h);
+    ngx_queue_remove(q);
+
+    ngx_log_error(NGX_LOG_ERR, ngx_cycle->log, 0, "ngx queue ok");
 }
