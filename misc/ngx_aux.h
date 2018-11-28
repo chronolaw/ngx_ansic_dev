@@ -85,5 +85,11 @@
         }                                                                     \
     } while(0)
 
+/* ------------------------------------------------------------------------- */
+
+// ngx_rbtree_t aux
+
+#define ngx_rbtree_data     ngx_queue_data
+
 #endif  // _NGX_AUX_H_INCLUDED_
 
