@@ -8,7 +8,7 @@
 use Test::Nginx::Socket;
 
 repeat_each(2);
-plan tests => repeat_each() * (blocks() * 4 + 1);
+plan tests => repeat_each() * (blocks() * 5);
 
 run_tests();
 
@@ -32,6 +32,7 @@ hello nginx
 ngx array ok
 ngx list ok
 ngx queue ok
+ngx rbtree ok
 advance ok
 
 === TEST 2 : disable test

@@ -12,6 +12,7 @@ static ngx_int_t ngx_http_ndg_advance_handler(ngx_http_request_t *r);
 static void ngx_http_ndg_array_test(ngx_http_request_t *r);
 static void ngx_http_ndg_list_test(ngx_http_request_t *r);
 static void ngx_http_ndg_queue_test(ngx_http_request_t *r);
+static void ngx_http_ndg_rbtree_test(ngx_http_request_t *r);
 
 static ngx_command_t ngx_http_ndg_advance_cmds[] =
 {
@@ -108,6 +109,7 @@ static ngx_int_t ngx_http_ndg_advance_handler(ngx_http_request_t *r)
         ngx_http_ndg_array_test(r);
         ngx_http_ndg_list_test(r);
         ngx_http_ndg_queue_test(r);
+        ngx_http_ndg_rbtree_test(r);
 
         ngx_log_error(NGX_LOG_ERR, r->connection->log, 0, "advance ok");
     }
@@ -268,9 +270,103 @@ static void ngx_http_ndg_queue_test(ngx_http_request_t *r)
         n = ngx_queue_data(q, info_node_t, link);
         printf("%d", n->x);
     }
+    printf("\n");
 
     q = ngx_queue_last(&h);
     ngx_queue_remove(q);
 
     ngx_log_error(NGX_LOG_ERR, ngx_cycle->log, 0, "ngx queue ok");
+}
+
+typedef struct {
+    ngx_rbtree_node_t   node;
+    int                 x;
+} info_rbtree_node_t;
+
+static info_rbtree_node_t*
+info_rbtree_lookup(ngx_rbtree_t *rbtree, int val, ngx_uint_t key)
+{
+    info_rbtree_node_t *n;
+    ngx_rbtree_node_t  *node, *sentinel;
+
+    node = rbtree->root;
+    sentinel = rbtree->sentinel;
+
+    while (node != sentinel) {
+        n = (info_rbtree_node_t*) node;
+
+        if (key != node->key) {
+            node = (key < node->key) ? node->left : node->right;
+            continue;
+        }
+
+        if (val != n->x) {
+            node = (val < n->x) ? node->left : node->right;
+        }
+
+        return n;
+    }
+
+    return NULL;
+}
+
+static void
+info_rbtree_traverse(ngx_rbtree_node_t  *node, ngx_rbtree_node_t *sentinel)
+{
+    if (node == sentinel) {
+        return;
+    }
+
+    info_rbtree_traverse(node->left, sentinel);
+    info_rbtree_node_t *n = (info_rbtree_node_t*) node;
+    printf("%d", n->x);
+    info_rbtree_traverse(node->right, sentinel);
+}
+
+static void ngx_http_ndg_rbtree_test(ngx_http_request_t *r)
+{
+    ngx_uint_t          i;
+    info_rbtree_node_t *n;
+    ngx_pool_t  *pool = ngx_cycle->pool;
+
+    ngx_rbtree_t        tree;
+    ngx_rbtree_node_t  sentinel;
+
+    // init
+    ngx_rbtree_init(&tree, &sentinel, ngx_rbtree_insert_value);
+
+    // insert
+    for(i = 0; i < 4; i++) {
+        n = ngx_pcalloc(pool, sizeof(info_rbtree_node_t));
+        if (n == NULL) {
+            ngx_log_error(
+                NGX_LOG_ERR, ngx_cycle->log, 0, "ngx_pcalloc failed");
+            return;
+        }
+
+        n->x = i + 1;
+        n->node.key = i;
+        ngx_rbtree_insert(&tree, &n->node);
+    }
+
+    // find min
+    ngx_rbtree_node_t  *p;
+    p = ngx_rbtree_min(tree.root, tree.sentinel);
+    assert(p->key == 0);
+
+    n = (info_rbtree_node_t*) p;
+    assert(n->x == 1);
+
+    // lookup
+    n = info_rbtree_lookup(&tree, 2, 1);
+    assert(n->x == 2);
+
+    n = info_rbtree_lookup(&tree, 10, 9);
+    assert(n == NULL);
+
+    //traverse
+    info_rbtree_traverse(tree.root, tree.sentinel);
+    printf("\n");
+
+    ngx_log_error(NGX_LOG_ERR, ngx_cycle->log, 0, "ngx rbtree ok");
 }
