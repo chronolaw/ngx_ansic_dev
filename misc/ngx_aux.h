@@ -65,6 +65,8 @@
 
 // ngx_queue_t aux
 
+#define ngx_queue_first      ngx_queue_head
+
 // usage:
 //    some_type *value;
 //    ngx_queue_each(value, queue) {
