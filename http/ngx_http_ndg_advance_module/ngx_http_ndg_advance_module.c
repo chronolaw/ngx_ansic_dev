@@ -13,6 +13,7 @@ static void ngx_http_ndg_array_test(ngx_http_request_t *r);
 static void ngx_http_ndg_list_test(ngx_http_request_t *r);
 static void ngx_http_ndg_queue_test(ngx_http_request_t *r);
 static void ngx_http_ndg_rbtree_test(ngx_http_request_t *r);
+static void ngx_http_ndg_buf_test(ngx_http_request_t *r);
 
 static ngx_command_t ngx_http_ndg_advance_cmds[] =
 {
@@ -110,6 +111,7 @@ static ngx_int_t ngx_http_ndg_advance_handler(ngx_http_request_t *r)
         ngx_http_ndg_list_test(r);
         ngx_http_ndg_queue_test(r);
         ngx_http_ndg_rbtree_test(r);
+        ngx_http_ndg_buf_test(r);
 
         ngx_log_error(NGX_LOG_ERR, r->connection->log, 0, "advance ok");
     }
@@ -318,8 +320,10 @@ info_rbtree_traverse(ngx_rbtree_node_t  *node, ngx_rbtree_node_t *sentinel)
     }
 
     info_rbtree_traverse(node->left, sentinel);
+
     info_rbtree_node_t *n = (info_rbtree_node_t*) node;
     printf("%d", n->x);
+
     info_rbtree_traverse(node->right, sentinel);
 }
 
@@ -369,4 +373,32 @@ static void ngx_http_ndg_rbtree_test(ngx_http_request_t *r)
     printf("\n");
 
     ngx_log_error(NGX_LOG_ERR, ngx_cycle->log, 0, "ngx rbtree ok");
+}
+
+static void ngx_http_ndg_buf_test(ngx_http_request_t *r)
+{
+    ngx_buf_t   *buf;
+    ngx_pool_t  *pool = ngx_cycle->pool;
+
+    buf = ngx_create_temp_buf(pool, 256);
+    if (buf == NULL) {
+        ngx_log_error(
+                NGX_LOG_ERR, ngx_cycle->log, 0, "ngx_create_temp_buf failed");
+        return;
+    }
+
+    assert(buf->temporary);
+    assert(ngx_buf_size(buf) == 0);
+
+    assert(!ngx_buf_special(buf));
+    assert(ngx_buf_in_memory(buf));
+    assert(ngx_buf_in_memory_only(buf));
+
+    ngx_str_t str = ngx_string("metroid");
+
+    ngx_memzero(buf->pos, buf->end - buf->start);
+    buf->last = ngx_cpymem(buf->pos, str.data, str.len);
+    assert(ngx_buf_size(buf) == (off_t)str.len);
+
+    ngx_log_error(NGX_LOG_ERR, ngx_cycle->log, 0, "ngx buf ok");
 }
