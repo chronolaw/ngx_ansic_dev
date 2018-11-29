@@ -65,7 +65,12 @@
 
 // ngx_queue_t aux
 
-#define ngx_queue_first      ngx_queue_head
+#define ngx_queue_link_t            ngx_queue_t
+
+#define ngx_queue_first             ngx_queue_head
+
+#define ngx_queue_insert_before(q, x)                                         \
+    ngx_queue_insert_after((q)->prev, x)
 
 // usage:
 //    some_type *value;
