@@ -14,6 +14,7 @@ static void ngx_http_ndg_list_test(ngx_http_request_t *r);
 static void ngx_http_ndg_queue_test(ngx_http_request_t *r);
 static void ngx_http_ndg_rbtree_test(ngx_http_request_t *r);
 static void ngx_http_ndg_buf_test(ngx_http_request_t *r);
+static void ngx_http_ndg_chain_test(ngx_http_request_t *r);
 
 static ngx_command_t ngx_http_ndg_advance_cmds[] =
 {
@@ -112,6 +113,7 @@ static ngx_int_t ngx_http_ndg_advance_handler(ngx_http_request_t *r)
         ngx_http_ndg_queue_test(r);
         ngx_http_ndg_rbtree_test(r);
         ngx_http_ndg_buf_test(r);
+        ngx_http_ndg_chain_test(r);
 
         ngx_log_error(NGX_LOG_ERR, r->connection->log, 0, "advance ok");
     }
@@ -405,4 +407,37 @@ static void ngx_http_ndg_buf_test(ngx_http_request_t *r)
     assert(ngx_buf_size(buf) == (off_t)str.len);
 
     ngx_log_error(NGX_LOG_ERR, ngx_cycle->log, 0, "ngx buf ok");
+}
+
+static void ngx_http_ndg_chain_test(ngx_http_request_t *r)
+{
+    ngx_buf_t   *buf;
+    ngx_chain_t *ch;
+    ngx_pool_t  *pool = ngx_cycle->pool;
+    ngx_str_t    str = ngx_string("echoes");
+
+    buf = ngx_calloc_buf(pool);
+    if (buf == NULL) {
+        ngx_log_error(
+                NGX_LOG_ERR, ngx_cycle->log, 0, "ngx_calloc_buf failed");
+        return;
+    }
+
+    buf->start = buf->pos = str.data;
+    buf->end = buf->last = str.data + str.len;
+    buf->memory = 1;
+
+    ch = ngx_alloc_chain_link(pool);
+    if (ch == NULL) {
+        ngx_log_error(
+                NGX_LOG_ERR, ngx_cycle->log, 0, "ngx_alloc_chain_link failed");
+        return;
+    }
+
+    ch->buf = buf;
+    ch->next = NULL;
+
+    ngx_free_chain(pool, ch);
+
+    ngx_log_error(NGX_LOG_ERR, ngx_cycle->log, 0, "ngx chain ok");
 }
