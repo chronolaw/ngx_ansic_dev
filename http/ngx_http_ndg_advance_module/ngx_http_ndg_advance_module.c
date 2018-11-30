@@ -277,6 +277,8 @@ static void ngx_http_ndg_queue_test(ngx_http_request_t *r)
     q = ngx_queue_last(&h);
     ngx_queue_remove(q);
 
+    ngx_queue_insert_after(ngx_queue_head(&h), q);
+
     ngx_log_error(NGX_LOG_ERR, ngx_cycle->log, 0, "ngx queue ok");
 }
 
@@ -340,7 +342,7 @@ static void ngx_http_ndg_rbtree_test(ngx_http_request_t *r)
     ngx_rbtree_init(&tree, &sentinel, ngx_rbtree_insert_value);
 
     // insert
-    for(i = 0; i < 4; i++) {
+    for(i = 0; i < 5; i++) {
         n = ngx_pcalloc(pool, sizeof(info_rbtree_node_t));
         if (n == NULL) {
             ngx_log_error(
@@ -360,6 +362,8 @@ static void ngx_http_ndg_rbtree_test(ngx_http_request_t *r)
 
     n = (info_rbtree_node_t*) p;
     assert(n->x == 1);
+
+    ngx_rbtree_delete(&tree, p);
 
     // lookup
     n = info_rbtree_lookup(&tree, 2, 1);
