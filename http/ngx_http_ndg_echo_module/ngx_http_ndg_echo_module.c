@@ -97,6 +97,10 @@ static char *ngx_http_ndg_echo(ngx_conf_t *cf, ngx_command_t *cmd, void *conf)
 static ngx_int_t ngx_http_ndg_echo_handler(ngx_http_request_t *r)
 {
     ngx_int_t   rc;
+    ngx_http_ndg_echo_loc_conf_t *lcf;
+    size_t      len;
+    ngx_buf_t   *b;
+    ngx_chain_t *out;
 
     if (!(r->method & NGX_HTTP_GET)) {
         return NGX_HTTP_NOT_ALLOWED;
@@ -107,10 +111,9 @@ static ngx_int_t ngx_http_ndg_echo_handler(ngx_http_request_t *r)
         return rc;
     }
 
-    ngx_http_ndg_echo_loc_conf_t* lcf;
     lcf = ngx_http_get_module_loc_conf(r, ngx_http_ndg_echo_module);
 
-    size_t len = lcf->msg.len;
+    len = lcf->msg.len;
     if (r->args.len) {
         len += r->args.len + 1;     // args + ','
     }
@@ -124,16 +127,27 @@ static ngx_int_t ngx_http_ndg_echo_handler(ngx_http_request_t *r)
     }
 
     //ngx_buf_t* b = ngx_calloc_buf(r->pool);
-    ngx_buf_t* b = ngx_create_temp_buf(r->pool, len);
+    b = ngx_create_temp_buf(r->pool, len);
     if (b == NULL) {
         return NGX_HTTP_INTERNAL_SERVER_ERROR;
     }
 
+#if 0
     if (r->args.len) {
         b->last = ngx_snprintf(b->pos, len, "%V,%V", &r->args, &lcf->msg);
     } else {
         b->last = ngx_snprintf(b->pos, len, "%V", &lcf->msg);
     }
+#endif
+    if (r->args.len) {
+        //b->last = ngx_slprintf(b->pos, b->end, "%V,", &r->args);
+        b->last = ngx_cpymem(b->pos, r->args.data, r->args.len);
+
+        //*b->last = ',';
+        //b->last++;
+        *(b->last++) = ',';
+    }
+    b->last = ngx_cpymem(b->last, lcf->msg.data, lcf->msg.len);
 
     //b->pos = lcf->msg.data;
     //b->last = lcf->msg.data + lcf->msg.len;
@@ -142,7 +156,7 @@ static ngx_int_t ngx_http_ndg_echo_handler(ngx_http_request_t *r)
     b->last_buf = 1;
     b->last_in_chain = 1;
 
-    ngx_chain_t* out = ngx_alloc_chain_link(r->pool);
+    out = ngx_alloc_chain_link(r->pool);
     out->buf = b;
     out->next = NULL;
 
