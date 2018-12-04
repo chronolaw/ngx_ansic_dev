@@ -119,6 +119,12 @@ static void ngx_stream_ndg_discard_handler(ngx_stream_session_t *s)
     }
 
     c->read->handler = ngx_stream_ndg_discard_read_handler;
+
+    if (ngx_handle_read_event(c->read, 0) != NGX_OK) {
+        ngx_stream_finalize_session(s, NGX_STREAM_INTERNAL_SERVER_ERROR);
+        return;
+    }
+
     ngx_add_timer(c->read, scf->timeout);
 
     c->read->handler(c->read);
@@ -133,6 +139,44 @@ void ngx_stream_ndg_discard_write_handler(ngx_event_t *ev)
 
 void ngx_stream_ndg_discard_read_handler(ngx_event_t *ev)
 {
-    // do nothing
+    ssize_t                      n;
+    ngx_connection_t            *c;
+    ngx_stream_session_t        *s;
+    ngx_stream_ndg_discard_srv_conf_t* scf;
+
+    u_char                       buffer[64];
+
+    c = ev->data;
+    s = c->data;
+    scf = ngx_stream_get_module_srv_conf(s, ngx_stream_ndg_discard_module);
+
+    if (ev->timedout) {
+        ngx_connection_error(c, NGX_ETIMEDOUT, "connection timed out");
+        ngx_stream_finalize_session(s, NGX_STREAM_OK);
+        return;
+    }
+
+    for (;ev->ready;) {
+        n = c->recv(c, buffer, 64);
+
+        // error
+        if (n <= 0 ) {
+            break;
+        }
+    }
+
+    if (n == NGX_AGAIN) {
+        if (ngx_handle_read_event(c->read, 0) != NGX_OK) {
+            ngx_stream_finalize_session(s, NGX_STREAM_INTERNAL_SERVER_ERROR);
+            return;
+        }
+
+        ngx_add_timer(c->read, scf->timeout);
+
+        return;
+    }
+
+    // n == 0 or error
+    ngx_stream_finalize_session(s, NGX_STREAM_INTERNAL_SERVER_ERROR);
 }
 
