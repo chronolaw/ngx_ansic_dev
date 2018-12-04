@@ -32,7 +32,8 @@ do
     http_modules="${http_modules} --add-module=${src_path}/http/${m} "
 done
 
-modules=""
+modules="ngx_stream_ndg_hello_module
+        "
 
 stream_modules="--with-stream "
 
