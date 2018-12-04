@@ -106,10 +106,8 @@ static char *ngx_stream_ndg_discard(ngx_conf_t *cf, ngx_command_t *cmd, void *co
 static void ngx_stream_ndg_discard_handler(ngx_stream_session_t *s)
 {
     ngx_connection_t        *c;
-    ngx_stream_ndg_discard_srv_conf_t* scf;
 
     c = s->connection;
-    scf = ngx_stream_get_module_srv_conf(s, ngx_stream_ndg_discard_module);
 
     c->write->handler = ngx_stream_ndg_discard_write_handler;
 
@@ -124,8 +122,6 @@ static void ngx_stream_ndg_discard_handler(ngx_stream_session_t *s)
         ngx_stream_finalize_session(s, NGX_STREAM_INTERNAL_SERVER_ERROR);
         return;
     }
-
-    ngx_add_timer(c->read, scf->timeout);
 
     c->read->handler(c->read);
 
@@ -145,6 +141,7 @@ void ngx_stream_ndg_discard_read_handler(ngx_event_t *ev)
     ngx_stream_ndg_discard_srv_conf_t* scf;
 
     u_char                       buffer[64];
+    //ngx_str_t                    str;
 
     c = ev->data;
     s = c->data;
@@ -156,12 +153,22 @@ void ngx_stream_ndg_discard_read_handler(ngx_event_t *ev)
         return;
     }
 
-    for (;ev->ready;) {
-        n = c->recv(c, buffer, 64);
+    n = NGX_AGAIN;
 
-        // error
-        if (n <= 0 ) {
-            break;
+    if (ev->ready) {
+
+        for (;;) {
+            n = c->recv(c, buffer, 64);
+
+            // error
+            if (n <= 0 ) {
+                break;
+            }
+
+            //str.data = buffer;
+            //str.len = n;
+            //ngx_log_error(NGX_LOG_ERR, c->log, 0, "recv %d bytes: %V", n, &str);
+            ngx_log_error(NGX_LOG_ERR, c->log, 0, "recv %d bytes", n);
         }
     }
 
@@ -177,6 +184,6 @@ void ngx_stream_ndg_discard_read_handler(ngx_event_t *ev)
     }
 
     // n == 0 or error
-    ngx_stream_finalize_session(s, NGX_STREAM_INTERNAL_SERVER_ERROR);
+    ngx_stream_finalize_session(s, NGX_STREAM_OK);
 }
 
