@@ -33,6 +33,7 @@ do
 done
 
 modules="ngx_stream_ndg_hello_module
+         ngx_stream_ndg_discard_module
         "
 
 stream_modules="--with-stream "
