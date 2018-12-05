@@ -18,10 +18,13 @@ no_modules="--without-http_fastcgi_module
 aux_module="--add-module=${src_path}/misc"
 
 modules="ngx_http_ndg_hello_module
+
          ngx_http_ndg_basic_module
          ngx_http_ndg_advance_module
+
          ngx_http_ndg_echo_module
          ngx_http_ndg_filter_module
+
          ngx_http_ndg_var_module
 
          ngx_http_ndg_thread_module

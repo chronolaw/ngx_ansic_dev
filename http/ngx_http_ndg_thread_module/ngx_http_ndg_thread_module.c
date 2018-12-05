@@ -223,5 +223,6 @@ static void ngx_http_ndg_thread_event_handler(ngx_event_t *ev)
         return;
     }
 
+    // for subreqeusts
     ngx_http_run_posted_requests(r->connection);
 }
