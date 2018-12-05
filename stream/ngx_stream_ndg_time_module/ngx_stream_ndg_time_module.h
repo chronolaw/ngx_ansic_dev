@@ -1,8 +1,8 @@
 // Copyright (c) 2018
 // Author: Chrono Law
 
-#ifndef _NGX_STREAM_NDG_DISCARD_MODULE_H_INCLUDED_
-#define _NGX_STREAM_NDG_DISCARD_MODULE_H_INCLUDED_
+#ifndef _NGX_STREAM_NDG_TIME_MODULE_H_INCLUDED_
+#define _NGX_STREAM_NDG_TIME_MODULE_H_INCLUDED_
 
 #include <nginx.h>
 #include <ngx_stream.h>
@@ -12,4 +12,4 @@
 //    ngx_msec_t timeout;
 //} ngx_stream_ndg_time_srv_conf_t;
 
-#endif  //_NGX_STREAM_NDG_DISCARD_MODULE_H_INCLUDED_
+#endif  //_NGX_STREAM_NDG_TIME_MODULE_H_INCLUDED_

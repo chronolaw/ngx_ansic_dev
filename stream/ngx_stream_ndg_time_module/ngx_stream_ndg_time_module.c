@@ -126,7 +126,7 @@ void ngx_stream_ndg_time_write_handler(ngx_event_t *ev)
         return;
     }
 
-    b->last = ngx_slprintf(b->pos, b->end, "%T", ngx_time());
+    b->last = ngx_slprintf(b->pos, b->end, "%T\n", ngx_time());
     b->last_buf = 1;
     b->last_in_chain = 1;
 
