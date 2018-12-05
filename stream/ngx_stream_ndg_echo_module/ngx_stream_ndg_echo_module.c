@@ -124,6 +124,57 @@ static ngx_int_t ngx_stream_ndg_echo_init(ngx_conf_t* cf)
 
 static ngx_int_t ngx_stream_ndg_echo_preread_handler(ngx_stream_session_t *s)
 {
+    ngx_buf_t                       *b;
+    ngx_chain_t                     *out;
+    ngx_connection_t                *c;
+    ngx_stream_ndg_echo_srv_conf_t  *scf;
+
+    scf = ngx_stream_get_module_srv_conf(s, ngx_stream_ndg_echo_module);
+    if (!scf->enable) {
+        return NGX_DECLINED;
+    }
+
+    c = s->connection;
+
+    if (c->buffer == NULL) {
+        return NGX_AGAIN;
+    }
+
+    b = ngx_create_temp_buf(c->pool, ngx_buf_size(c->buffer));
+    if (b == NULL) {
+        ngx_log_error(NGX_LOG_ERR, c->log, 0, "ngx_create_temp_buf failed");
+        return NGX_ERROR;
+    }
+
+    b->last = ngx_cpymem(b->pos, c->buffer->pos, ngx_buf_size(c->buffer));
+
+    out = ngx_alloc_chain_link(c->pool);
+    if (out == NULL) {
+        ngx_log_error(NGX_LOG_ERR, c->log, 0, "ngx_alloc_chain_link failed");
+        return NGX_ERROR;
+    }
+
+    out->buf = b;
+    out->next = NULL;
+
+    ngx_log_error(NGX_LOG_ERR, s->connection->log, 0, "echo send %O bytes", ngx_buf_size(b));
+
+    if (ngx_stream_top_filter(s, out, 1) == NGX_ERROR) {
+        ngx_log_error(NGX_LOG_ERR, c->log, 0, "ngx_stream_top_filter failed");
+        return NGX_ERROR;
+    }
+
+    // consume buffer
+    c->buffer->last = c->buffer->pos;
+
+    return NGX_AGAIN;
+}
+
+#if 0
+
+// line echo
+static ngx_int_t ngx_stream_ndg_echo_preread_handler(ngx_stream_session_t *s)
+{
     u_char                          *p;
     ngx_buf_t                       *b;
     ngx_chain_t                     *out;
@@ -164,6 +215,8 @@ static ngx_int_t ngx_stream_ndg_echo_preread_handler(ngx_stream_session_t *s)
     out->buf = b;
     out->next = NULL;
 
+    ngx_log_error(NGX_LOG_ERR, s->connection->log, 0, "echo send %O bytes", ngx_buf_size(b));
+
     if (ngx_stream_top_filter(s, out, 1) == NGX_ERROR) {
         ngx_log_error(NGX_LOG_ERR, c->log, 0, "ngx_stream_top_filter failed");
         return NGX_ERROR;
@@ -172,7 +225,8 @@ static ngx_int_t ngx_stream_ndg_echo_preread_handler(ngx_stream_session_t *s)
     // consume buffer
     c->buffer->last = ngx_cpymem(c->buffer->pos, p + 1, c->buffer->last - (p+1));
 
-    //ngx_log_error(NGX_LOG_ERR, s->connection->log, 0, "echo ansi c");
-
     return NGX_AGAIN;
 }
+
+#endif
+

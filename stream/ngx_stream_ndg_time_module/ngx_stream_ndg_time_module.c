@@ -109,12 +109,12 @@ void ngx_stream_ndg_time_write_handler(ngx_event_t *ev)
     }
 
     if (!ev->ready) {
-        if (ngx_handle_write_event(c->write, 0) != NGX_OK) {
+        if (ngx_handle_write_event(ev, 0) != NGX_OK) {
             ngx_stream_finalize_session(s, NGX_STREAM_INTERNAL_SERVER_ERROR);
             return;
         }
 
-        ngx_add_timer(c->read, 100);
+        ngx_add_timer(ev, 100);
         return;
     }
 

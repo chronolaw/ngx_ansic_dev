@@ -173,12 +173,12 @@ void ngx_stream_ndg_discard_read_handler(ngx_event_t *ev)
     }
 
     if (n == NGX_AGAIN) {
-        if (ngx_handle_read_event(c->read, 0) != NGX_OK) {
+        if (ngx_handle_read_event(ev, 0) != NGX_OK) {
             ngx_stream_finalize_session(s, NGX_STREAM_INTERNAL_SERVER_ERROR);
             return;
         }
 
-        ngx_add_timer(c->read, scf->timeout);
+        ngx_add_timer(ev, scf->timeout);
 
         return;
     }
