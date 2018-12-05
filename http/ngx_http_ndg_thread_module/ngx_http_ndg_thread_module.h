@@ -9,7 +9,7 @@
 #include <assert.h>
 
 typedef struct {
-    ngx_str_t pool_name;
+    ngx_str_t poolname;
 } ngx_http_ndg_thread_loc_conf_t;
 
 #endif  //_NGX_HTTP_NDG_THREAD_MODULE_H_INCLUDED_
