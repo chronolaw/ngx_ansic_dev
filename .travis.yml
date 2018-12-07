@@ -34,7 +34,7 @@ install:
 
 script:
   - cd nginx-${NGINX_VERSION}/
-  -  ./configure --add-module=../http/ngx_http_ndg_hello_module --add-module=../http/ngx_http_ndg_basic_module --add-module=../http/ngx_http_ndg_advance_module --add-module=../http/ngx_http_ndg_echo_module --add-module=../http/ngx_http_ndg_filter_module --add-module=../http/ngx_http_ndg_variable_module --add-module=../misc > build.log 2>&1 || (cat build.log && exit 1)
+  -  ./configure --add-module=../http/ngx_http_ndg_hello_module --add-module=../http/ngx_http_ndg_basic_module --add-module=../http/ngx_http_ndg_advance_module --add-module=../http/ngx_http_ndg_echo_module --add-module=../http/ngx_http_ndg_filter_module --add-module=../http/ngx_http_ndg_variable_module --add-module=ngx_http_ndg_complex_value_module --add-module=ngx_http_ndg_thread_module --add-module=../misc > build.log 2>&1 || (cat build.log && exit 1)
   - make -j2 > build.log 2>&1 || (cat build.log && exit 1)
   - ./objs/nginx -V
   - export PATH=$PATH:`pwd`/objs
