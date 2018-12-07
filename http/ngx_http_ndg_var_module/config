@@ -1,9 +1,0 @@
-# module config
-
-ngx_addon_name=ngx_http_ndg_var_module
-ngx_module_type=HTTP
-ngx_module_name=ngx_http_ndg_var_module
-ngx_module_srcs="$ngx_addon_dir/ngx_http_ndg_var_module.c"
-
-. auto/module
-
