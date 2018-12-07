@@ -25,7 +25,7 @@ modules="ngx_http_ndg_hello_module
          ngx_http_ndg_echo_module
          ngx_http_ndg_filter_module
 
-         ngx_http_ndg_var_module
+         ngx_http_ndg_variable_module
 
          ngx_http_ndg_thread_module
         "

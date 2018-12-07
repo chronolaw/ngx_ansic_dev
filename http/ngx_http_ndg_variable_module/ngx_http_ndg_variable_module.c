@@ -121,8 +121,11 @@ static ngx_int_t ngx_http_ndg_variable_handler(ngx_http_request_t *r)
     ngx_http_variable_value_t   *vv;
 
     ngx_http_ndg_variable_loc_conf_t* lcf;
-    ngx_str_t                   names[] =
-                {ngx_string("current_method"), ngx_string("hello_var")};
+    ngx_str_t                   names[] = {
+                 ngx_string("current_method"),
+                 ngx_string("http_user_agent"),
+                 ngx_string("hello_var"),
+                 };
 
     lcf = ngx_http_get_module_loc_conf(r, ngx_http_ndg_variable_module);
 
@@ -131,7 +134,7 @@ static ngx_int_t ngx_http_ndg_variable_handler(ngx_http_request_t *r)
     }
 
     // log var
-    for (i = 0; i < 2; i++) {
+    for (i = 0; i < 3; i++) {
         str = &names[i];
         key = ngx_hash_key(str->data, str->len);
 
@@ -140,7 +143,8 @@ static ngx_int_t ngx_http_ndg_variable_handler(ngx_http_request_t *r)
         if (vv == NULL || vv->not_found || !vv->valid) {
             ngx_log_error(NGX_LOG_ERR, r->connection->log, 0,
                 "log var %V failed", str);
-            return NGX_ERROR;
+            //return NGX_ERROR;
+            continue;
         }
 
         ngx_log_error(NGX_LOG_ERR, r->connection->log, 0,
