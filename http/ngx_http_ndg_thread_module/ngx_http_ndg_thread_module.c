@@ -114,6 +114,8 @@ static ngx_int_t ngx_http_ndg_thread_handler(ngx_http_request_t *r)
     ngx_thread_task_t               *task;
     ngx_http_ndg_thread_task_ctx_t  *tctx;
 
+    ngx_http_discard_request_body(r);
+
     lcf = ngx_http_get_module_loc_conf(r, ngx_http_ndg_thread_module);
 
     tpool = ngx_thread_pool_get((ngx_cycle_t*)ngx_cycle, &lcf->poolname);
@@ -180,6 +182,7 @@ static void ngx_http_ndg_thread_task_handler(void *data, ngx_log_t *log)
         ngx_log_error(NGX_LOG_ERR, log, 0, "thread task %d ok", tctx->task->id);
     }
 }
+
 static void ngx_http_ndg_thread_event_handler(ngx_event_t *ev)
 {
     ngx_thread_task_t               *task;
@@ -224,5 +227,5 @@ static void ngx_http_ndg_thread_event_handler(ngx_event_t *ev)
     }
 
     // for subreqeusts
-    ngx_http_run_posted_requests(r->connection);
+    //ngx_http_run_posted_requests(r->connection);
 }
