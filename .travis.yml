@@ -35,7 +35,6 @@ install:
 script:
   - cd nginx-${NGINX_VERSION}/
   -  ./configure
-   --with-threads
    --add-module=../http/ngx_http_ndg_hello_module
    --add-module=../http/ngx_http_ndg_basic_module
    --add-module=../http/ngx_http_ndg_advance_module
@@ -43,7 +42,13 @@ script:
    --add-module=../http/ngx_http_ndg_filter_module
    --add-module=../http/ngx_http_ndg_variable_module
    --add-module=../http/ngx_http_ndg_complex_value_module
+   --with-threads
    --add-module=../http/ngx_http_ndg_thread_module
+   --with-stream
+   --add-module=../stream/ngx_stream_ndg_hello_module
+   --add-module=../stream/ngx_stream_ndg_discard_module
+   --add-module=../stream/ngx_stream_ndg_time_module
+   --add-module=../stream/ngx_stream_ndg_echo_module
    --add-module=../misc
    > build.log 2>&1 || (cat build.log && exit 1)
   - make -j2 > build.log 2>&1 || (cat build.log && exit 1)
