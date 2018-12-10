@@ -161,16 +161,72 @@ static ngx_int_t ngx_http_ndg_upstream_handler(ngx_http_request_t *r)
 
 static ngx_int_t ngx_http_ndg_upstream_create_request(ngx_http_request_t *r)
 {
-    return NGX_OK;
-}
+    ngx_pool_t      *pool;
+    ngx_buf_t       *b1, *b2;
+    ngx_chain_t     *out1, *out2;
+    ngx_str_t        lf = ngx_string("\n");
 
-static ngx_int_t ngx_http_ndg_upstream_reinit_request(ngx_http_request_t *r)
-{
+    pool = r->pool;
+
+    b1 = ngx_calloc_buf(pool);
+    b2 = ngx_calloc_buf(pool);
+    if (b1 == NULL || b2 == NULL) {
+        ngx_log_error(NGX_LOG_ERR, r->connection->log, 0, "ngx_calloc_buf failed");
+        return NGX_ERROR;
+    }
+
+    b1->pos = r->args.data;
+    b1->last = r->args.data + r->args.len;
+    b1->memory = 1;
+
+    b2->pos = lf.data;
+    b2->last = lf.data + lf.len;
+    b2->memory = 1;
+    b2->last_buf = 1;
+    b2->last_in_chain = 1;
+
+    out1 = ngx_alloc_chain_link(pool);
+    out2 = ngx_alloc_chain_link(pool);
+    if (out1 == NULL || out2 == NULL) {
+        return NGX_ERROR;
+    }
+
+    out1->buf = b1;
+    out1->next = out2;
+    out2->buf = b2;
+    out2->next = NULL;
+
+    r->upstream->request_bufs = out1;
+
     return NGX_OK;
 }
 
 static ngx_int_t ngx_http_ndg_upstream_process_header(ngx_http_request_t *r)
 {
+    u_char                  *p;
+    ngx_http_upstream_t     *u;
+
+    u = r->upstream;
+
+    p = ngx_strlchr(u->buffer.pos, u->buffer.last, LF);   //'\n'
+    if (p == NULL) {
+        return NGX_AGAIN;
+    }
+
+    u->headers_in.content_length_n = p - u->buffer.pos;
+    u->headers_in.status_n = NGX_HTTP_OK;
+
+    u->state->status = NGX_HTTP_OK;
+
+    // remove '\n'
+    u->buffer.last = p;
+
+    return NGX_OK;
+}
+
+static ngx_int_t ngx_http_ndg_upstream_reinit_request(ngx_http_request_t *r)
+{
+    // do nothing
     return NGX_OK;
 }
 
