@@ -8,7 +8,7 @@
 use Test::Nginx::Socket;
 
 repeat_each(2);
-plan tests => repeat_each() * (blocks() + 4);
+plan tests => repeat_each() * (blocks()*3);
 
 run_tests();
 
@@ -46,6 +46,9 @@ hello
 --- error_log
 log var current_method=GET ok
 
+--- no_error_log
+log var hello_var=xxx ok
+
 === TEST 3 : $current_method var
 
 --- config
@@ -60,4 +63,23 @@ GET /var
 hello GET
 
 --- no_error_log
+
+=== TEST 4 : log hello var
+
+--- config
+    location = /var {
+        set $hello_var "xxx";
+        ndg_variable on;
+        return 200 "hello\n";
+    }
+
+--- request
+GET /var
+
+--- response_body
+hello
+
+--- error_log
+log var current_method=GET ok
+log var hello_var=xxx ok
 
