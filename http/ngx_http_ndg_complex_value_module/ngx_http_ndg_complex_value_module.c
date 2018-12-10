@@ -139,6 +139,6 @@ static ngx_int_t ngx_http_ndg_complex_value_handler(ngx_http_request_t *r)
             "log complex %V ok", &str);
     }
 
-    return NGX_DECLINED;
+    return NGX_OK;
 }
 
