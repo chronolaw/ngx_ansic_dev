@@ -148,14 +148,14 @@ static ngx_int_t ngx_http_ndg_thread_handler(ngx_http_request_t *r)
     task->event.data = task;
     task->event.handler = ngx_http_ndg_thread_event_handler;
 
+    r->main->blocked++;
+    r->main->count++;
+
     if (ngx_thread_task_post(tpool, task) != NGX_OK) {
         ngx_log_error(NGX_LOG_ERR,
                       r->connection->log, 0, "ngx_thread_task_post failed");
         return NGX_ERROR;
     }
-
-    r->main->blocked++;
-    r->main->count++;
 
     return NGX_DONE;
 }
@@ -200,7 +200,7 @@ static void ngx_http_ndg_thread_event_handler(ngx_event_t *ev)
     //ngx_http_set_log_request(r->connection->log, r);
 
     r->main->blocked--;
-    r->main->count--;
+    //r->main->count--;
 
     if (rc != NGX_OK) {
         ngx_http_finalize_request(r, rc);
@@ -221,11 +221,13 @@ static void ngx_http_ndg_thread_event_handler(ngx_event_t *ev)
     out->next = NULL;
 
     rc = ngx_http_output_filter(r, out);
-    if (rc != NGX_OK) {
-        ngx_http_finalize_request(r, rc);
-        return;
-    }
+    //if (rc != NGX_OK) {
+    //    ngx_http_finalize_request(r, rc);
+    //    return;
+    //}
 
     // for subreqeusts
     //ngx_http_run_posted_requests(r->connection);
+
+    ngx_http_finalize_request(r, rc);
 }
