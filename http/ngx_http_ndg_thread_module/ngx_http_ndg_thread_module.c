@@ -200,7 +200,7 @@ static void ngx_http_ndg_thread_event_handler(ngx_event_t *ev)
     //ngx_http_set_log_request(r->connection->log, r);
 
     r->main->blocked--;
-    //r->main->count--;
+    //r->main->count--;     // DO NOT DO IT!
 
     if (rc != NGX_OK) {
         ngx_http_finalize_request(r, rc);
