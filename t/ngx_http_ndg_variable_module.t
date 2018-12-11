@@ -8,7 +8,7 @@
 use Test::Nginx::Socket;
 
 repeat_each(2);
-plan tests => repeat_each() * (blocks()*3);
+plan tests => repeat_each() * (blocks() * 3 + 3);
 
 run_tests();
 
@@ -45,6 +45,8 @@ hello
 
 --- error_log
 log var current_method=GET ok
+log var http_user_agent failed
+log var hello_var failed
 
 --- no_error_log
 log var hello_var=xxx ok
@@ -81,5 +83,6 @@ hello
 
 --- error_log
 log var current_method=GET ok
+log var http_user_agent failed
 log var hello_var=xxx ok
 
