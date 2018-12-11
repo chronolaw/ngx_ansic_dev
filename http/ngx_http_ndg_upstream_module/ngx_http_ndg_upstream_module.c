@@ -221,6 +221,8 @@ static ngx_int_t ngx_http_ndg_upstream_process_header(ngx_http_request_t *r)
     // remove '\n'
     u->buffer.last = p;
 
+    ngx_log_error(NGX_LOG_ERR, r->connection->log, 0, "upstream ok");
+
     return NGX_OK;
 }
 
