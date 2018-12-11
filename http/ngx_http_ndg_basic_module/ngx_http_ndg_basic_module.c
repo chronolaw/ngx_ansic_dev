@@ -270,6 +270,7 @@ static void ngx_http_ndg_hash_test(ngx_http_request_t *r)
     h1 = ngx_hash_key_lc(cs.data, cs.len);
     h2 = ngx_hash_strlow(buf, cs.data, cs.len);
     assert(h1 == h2);
+    assert(ngx_strncmp(buf, s.data, s.len)==0);
 
     //crc32
     hash1 = ngx_crc32_short(s.data, s.len);
