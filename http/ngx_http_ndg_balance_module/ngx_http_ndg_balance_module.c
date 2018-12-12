@@ -158,7 +158,5 @@ ngx_http_upstream_get_ndg_balance_peer(ngx_peer_connection_t *pc, void *data)
     pc->socklen = peer->socklen;
     pc->name = &peer->name;
 
-    rrp->current = peer;
-
     return NGX_OK;
 }
