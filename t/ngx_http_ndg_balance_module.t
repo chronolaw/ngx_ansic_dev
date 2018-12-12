@@ -8,18 +8,20 @@
 use Test::Nginx::Socket;
 
 repeat_each(2);
-plan tests => repeat_each() * (blocks() * 3);
+plan tests => repeat_each() * (blocks() * 4);
 
 run_tests();
 
 __DATA__
 
-=== TEST 1 : hello upstream
+=== TEST 1 : zone balance
 
 --- main_config
     stream {
         server {
             listen 1707;
+            listen 1708;
+            listen 1709;
             preread_buffer_size 1k;
             ndg_echo;
         }
@@ -27,7 +29,11 @@ __DATA__
 
 --- http_config
     upstream backend {
+        zone shups 64k;
+        ndg_balance;
         server 127.0.0.1:1707;
+        server 127.0.0.1:1708;
+        server 127.0.0.1:1709;
     }
 
 --- config
@@ -43,4 +49,5 @@ hello
 
 --- error_log
 ndg upstream ok
+ndg balance ok
 
