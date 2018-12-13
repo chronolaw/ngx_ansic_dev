@@ -6,6 +6,10 @@ static void *ngx_http_ndg_subrequest_create_loc_conf(ngx_conf_t* cf);
 static char *ngx_http_ndg_subrequest_merge_loc_conf(
                 ngx_conf_t *cf, void *parent, void *child);
 
+static ngx_int_t
+ngx_http_ndg_subrequest_post_handler(ngx_http_request_t *r, void *data, ngx_int_t rc);
+//static void
+//ngx_http_ndg_parent_post_handler(ngx_http_request_t *r);
 
 static ngx_int_t ngx_http_ndg_subrequest_init(ngx_conf_t* cf);
 static ngx_int_t ngx_http_ndg_subrequest_handler(ngx_http_request_t *r);
@@ -14,8 +18,8 @@ static ngx_command_t ngx_http_ndg_subrequest_cmds[] =
 {
     {
         ngx_string("ndg_subrequest"),
-        NGX_HTTP_LOC_CONF|NGX_CONF_FLAG,
-        ngx_conf_set_flag_slot,
+        NGX_HTTP_LOC_CONF|NGX_CONF_TAKE1,
+        ngx_conf_set_str_slot,
         NGX_HTTP_LOC_CONF_OFFSET,
         offsetof(ngx_http_ndg_subrequest_loc_conf_t, uri),
         NULL
@@ -94,8 +98,11 @@ static ngx_int_t ngx_http_ndg_subrequest_init(ngx_conf_t* cf)
 
 static ngx_int_t ngx_http_ndg_subrequest_handler(ngx_http_request_t *r)
 {
-    //ngx_int_t   rc;
-    ngx_http_ndg_subrequest_loc_conf_t *lcf;
+    ngx_int_t                            rc;
+    ngx_http_request_t                  *sr;
+    ngx_http_post_subrequest_t          *psr;
+    ngx_http_ndg_subrequest_loc_conf_t  *lcf;
+    ngx_http_ndg_subrequest_ctx_t       *ctx;
 
     lcf = ngx_http_get_module_loc_conf(r, ngx_http_ndg_subrequest_module);
 
@@ -103,6 +110,62 @@ static ngx_int_t ngx_http_ndg_subrequest_handler(ngx_http_request_t *r)
         return NGX_DECLINED;
     }
 
+    ctx = ngx_http_get_module_ctx(r, ngx_http_ndg_subrequest_module);
+
+    if (ctx == NULL) {
+        psr = ngx_pcalloc(r->pool, sizeof(ngx_http_post_subrequest_t));
+        if (psr == NULL) {
+            return NGX_ERROR;
+        }
+
+        psr->handler = ngx_http_ndg_subrequest_post_handler;
+        //psr->data = NULL;
+
+        rc = ngx_http_subrequest(r, &lcf->uri, &r->args, &sr, psr,
+                NGX_HTTP_SUBREQUEST_IN_MEMORY);
+        if (rc != NGX_OK) {
+            return NGX_ERROR;
+        }
+
+        return NGX_DONE;
+    }
+
+    // subreqeust finished
+    sr = ctx->sr;
+
+    ngx_log_error(NGX_LOG_ERR, r->connection->log, 0,
+                  "ndg subrequest ok");
+
+    // 200 or 403
+    return sr->headers_out.status == NGX_HTTP_OK ?
+        NGX_OK : NGX_HTTP_FORBIDDEN;
+}
+
+static ngx_int_t
+ngx_http_ndg_subrequest_post_handler(ngx_http_request_t *r, void *data, ngx_int_t rc)
+{
+    ngx_http_request_t              *pr;
+    ngx_http_ndg_subrequest_ctx_t   *ctx;
+
+    pr = r->parent;
+    pr->write_event_handler = ngx_http_core_run_phases; //ngx_http_ndg_parent_post_handler;
+
+    ctx = ngx_http_get_module_ctx(pr, ngx_http_ndg_subrequest_module);
+    if (ctx == NULL) {
+        ctx = ngx_pcalloc(pr->pool, sizeof(ngx_http_ndg_subrequest_ctx_t));
+        if (ctx == NULL) {
+            return NGX_ERROR;
+        }
+
+        ngx_http_set_ctx(pr, ctx, ngx_http_ndg_subrequest_module);
+    }
+
+    ctx->sr = r;
+
     return NGX_OK;
 }
 
+//static void
+//ngx_http_ndg_parent_post_handler(ngx_http_request_t *r)
+//{
+//}

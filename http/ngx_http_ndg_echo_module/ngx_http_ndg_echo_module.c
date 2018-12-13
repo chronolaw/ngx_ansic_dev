@@ -14,7 +14,7 @@ static ngx_command_t ngx_http_ndg_echo_cmds[] =
 {
     {
         ngx_string("ndg_echo"),
-        NGX_HTTP_LOC_CONF|NGX_CONF_FLAG,
+        NGX_HTTP_LOC_CONF|NGX_CONF_TAKE1,
         ngx_http_ndg_echo,
         NGX_HTTP_LOC_CONF_OFFSET,
         offsetof(ngx_http_ndg_echo_loc_conf_t, msg),

@@ -11,4 +11,9 @@ typedef struct {
     ngx_str_t uri;
 } ngx_http_ndg_subrequest_loc_conf_t;
 
+typedef struct {
+    ngx_http_request_t *sr;
+} ngx_http_ndg_subrequest_ctx_t;
+
+
 #endif  //_NGX_HTTP_NDG_SUBREQUEST_MODULE_H_INCLUDED_
