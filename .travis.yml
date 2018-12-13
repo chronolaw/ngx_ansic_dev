@@ -42,6 +42,7 @@ script:
    --add-module=../http/ngx_http_ndg_filter_module
    --add-module=../http/ngx_http_ndg_upstream_module
    --add-module=../http/ngx_http_ndg_balance_module
+   --add-module=../http/ngx_http_ndg_subrequest_module
    --add-module=../http/ngx_http_ndg_variable_module
    --add-module=../http/ngx_http_ndg_complex_value_module
    --with-threads
