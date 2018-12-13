@@ -6,6 +6,8 @@ static void *ngx_http_ndg_subrequest_create_loc_conf(ngx_conf_t* cf);
 static char *ngx_http_ndg_subrequest_merge_loc_conf(
                 ngx_conf_t *cf, void *parent, void *child);
 
+//static char *ngx_http_ndg_subrequest(ngx_conf_t *cf, ngx_command_t *cmd, void *conf);
+
 static ngx_int_t
 ngx_http_ndg_subrequest_post_handler(ngx_http_request_t *r, void *data, ngx_int_t rc);
 //static void
@@ -19,7 +21,7 @@ static ngx_command_t ngx_http_ndg_subrequest_cmds[] =
     {
         ngx_string("ndg_subrequest"),
         NGX_HTTP_LOC_CONF|NGX_CONF_TAKE1,
-        ngx_conf_set_str_slot,
+        ngx_conf_set_str_slot, //ngx_http_ndg_subrequest,
         NGX_HTTP_LOC_CONF_OFFSET,
         offsetof(ngx_http_ndg_subrequest_loc_conf_t, uri),
         NULL
@@ -79,6 +81,23 @@ static char *ngx_http_ndg_subrequest_merge_loc_conf(
     return NGX_CONF_OK;
 }
 
+//static char *ngx_http_ndg_subrequest(ngx_conf_t *cf, ngx_command_t *cmd, void *conf)
+//{
+//    ngx_http_ndg_subrequest_loc_conf_t  *lcf;
+//
+//    char* rc = ngx_conf_set_str_slot(cf, cmd, conf);
+//    if (rc != NGX_CONF_OK) {
+//        return rc;
+//    }
+//
+//    lcf = conf;
+//
+//    ngx_log_error(NGX_LOG_ERR, cf->log, 0,
+//                  "ndg subrequest uri %V", &lcf->uri);
+//
+//    return NGX_CONF_OK;
+//}
+
 static ngx_int_t ngx_http_ndg_subrequest_init(ngx_conf_t* cf)
 {
     ngx_http_handler_pt        *h;
@@ -99,6 +118,7 @@ static ngx_int_t ngx_http_ndg_subrequest_init(ngx_conf_t* cf)
 static ngx_int_t ngx_http_ndg_subrequest_handler(ngx_http_request_t *r)
 {
     ngx_int_t                            rc;
+    ngx_str_t                            str;
     ngx_http_request_t                  *sr;
     ngx_http_post_subrequest_t          *psr;
     ngx_http_ndg_subrequest_loc_conf_t  *lcf;
@@ -133,8 +153,10 @@ static ngx_int_t ngx_http_ndg_subrequest_handler(ngx_http_request_t *r)
     // subreqeust finished
     sr = ctx->sr;
 
+    str.data = sr->out->buf->pos;
+    str.len = ngx_buf_size(sr->out->buf);
     ngx_log_error(NGX_LOG_ERR, r->connection->log, 0,
-                  "ndg subrequest ok");
+                  "ndg subrequest ok, body is %V", &str);
 
     // 200 or 403
     return sr->headers_out.status == NGX_HTTP_OK ?
