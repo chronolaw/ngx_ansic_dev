@@ -138,6 +138,11 @@ static void ngx_http_ndg_array_test(ngx_http_request_t *r)
     assert(arr->size == sizeof(ngx_uint_t));
     assert(arr->nalloc == 2);
 
+    //ngx_aux.h
+    assert(ngx_array_nelts(arr) == 0);
+    assert(ngx_array_empty(arr));
+    assert(ngx_array_capacity(arr) == 2);
+
     // push to array
     ngx_uint_t  i;
     ngx_uint_t *p;
@@ -160,6 +165,8 @@ static void ngx_http_ndg_array_test(ngx_http_request_t *r)
     }
 
     // iterate array with each
+    assert(!ngx_array_empty(arr));
+
     i = 0;
     ngx_uint_t *value;
     ngx_array_each(value, arr) {
@@ -220,9 +227,12 @@ static void ngx_http_ndg_list_test(ngx_http_request_t *r)
     }
 
     // use macro each loop
+    assert(!ngx_list_empty(ls));
+
     ngx_uint_t *value;
     ngx_list_each(value, ls) {
-        ngx_log_error(NGX_LOG_ERR, ngx_cycle->log, 0, "elt = %ud", *value);
+        ngx_log_error(NGX_LOG_ERR, ngx_cycle->log, 0,
+                        "elt = %ud in each", *value);
     } ngx_list_loop;
 
     ngx_log_error(NGX_LOG_ERR, ngx_cycle->log, 0, "ngx list ok");
@@ -265,6 +275,8 @@ static void ngx_http_ndg_queue_test(ngx_http_request_t *r)
     n->x = 3;
     ngx_queue_insert_head(&h, &n->link);
 
+    printf("iterate queue\n");
+
     // iterate
     ngx_queue_t *q;
     for(q = ngx_queue_head(&h);
@@ -274,6 +286,13 @@ static void ngx_http_ndg_queue_test(ngx_http_request_t *r)
         n = ngx_queue_data(q, info_node_t, link);
         printf("%d", n->x);
     }
+    printf("\n");
+
+    // iterate array with each
+    info_node_t *value;
+    ngx_queue_each(value, &h, info_node_t, link) {
+        printf("%d", value->x);
+    } ngx_queue_loop;
     printf("\n");
 
     q = ngx_queue_last(&h);
@@ -373,6 +392,8 @@ static void ngx_http_ndg_rbtree_test(ngx_http_request_t *r)
 
     n = info_rbtree_lookup(&tree, 10, 9);
     assert(n == NULL);
+
+    printf("traverse rbtree\n");
 
     //traverse
     info_rbtree_traverse(tree.root, tree.sentinel);

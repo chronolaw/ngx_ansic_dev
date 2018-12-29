@@ -40,6 +40,9 @@
 
 // ngx_list_t aux
 
+#define ngx_list_empty(list)                                                \
+    ((list)->part.nelts == 0)
+
 // usage:
 //    some_type *value;
 //    ngx_list_each(value, list) {
