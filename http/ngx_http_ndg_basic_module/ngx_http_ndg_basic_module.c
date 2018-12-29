@@ -256,6 +256,22 @@ static void ngx_http_ndg_log_test(ngx_http_request_t *r)
     ngx_log_error(NGX_LOG_WARN, log, 0, "warning");
     ngx_log_error(NGX_LOG_ERR, log, 0, "error accured");
     //ngx_log_error(NGX_LOG_ALERT, log, 0, "ALERT!!");
+
+    ngx_int_t       i   = -100;
+    unsigned long   ul  = 65535L;
+    double          f   = 0.618;
+    ngx_str_t       str = ngx_string("metroid");
+    char            cstr[] = "prime";
+
+    ngx_log_error(NGX_LOG_ERR, log, 0,
+        "%i,%uL,%.5f,%V,%uxz,%Xp,%P",
+        i, ul, f, &str, ul, str.data,ngx_getpid()
+        );
+
+    ngx_log_error(NGX_LOG_ERR, log, 0,
+        "%%,%T,%s,%c,%N",
+        ngx_time(), cstr, cstr[0]
+        );
 }
 
 static void ngx_http_ndg_hash_test(ngx_http_request_t *r)
