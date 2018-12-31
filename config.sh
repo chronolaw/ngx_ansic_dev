@@ -34,6 +34,8 @@ modules="ngx_http_ndg_hello_module
          ngx_http_ndg_complex_value_module
 
          ngx_http_ndg_thread_module
+
+         ngx_http_ndg_debug_module
         "
 
 http_modules=""
