@@ -45,6 +45,7 @@ script:
    --add-module=../http/ngx_http_ndg_subrequest_module
    --add-module=../http/ngx_http_ndg_variable_module
    --add-module=../http/ngx_http_ndg_complex_value_module
+   --add-module=../http/ngx_http_ndg_debug_module
    --with-threads
    --add-module=../http/ngx_http_ndg_thread_module
    --with-stream
