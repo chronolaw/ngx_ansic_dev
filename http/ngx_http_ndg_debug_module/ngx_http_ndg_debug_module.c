@@ -96,15 +96,27 @@ static ngx_int_t ngx_http_ndg_debug_init(ngx_conf_t* cf)
 
 static ngx_int_t ngx_http_ndg_debug_handler(ngx_http_request_t *r)
 {
-    ngx_http_ndg_debug_loc_conf_t* lcf;
+    ngx_http_ndg_debug_loc_conf_t   *lcf;
+    ngx_log_t                       *log;
+
+    log = r->connection->log;
 
     lcf = ngx_http_get_module_loc_conf(r, ngx_http_ndg_debug_module);
 
     if (lcf->enable) {
         ngx_debug_point();
 
-        printf("debug nginx\n");
-        ngx_log_error(NGX_LOG_ERR, r->connection->log, 0, "debug ansi c");
+        //printf("debug nginx\n");
+
+        // needs "configure --with-debug"
+
+        ngx_log_debug0(NGX_LOG_DEBUG_ALLOC, log, 0, "debug nginx");
+        ngx_log_debug1(NGX_LOG_DEBUG_CORE, log, 0, "debug core %P", ngx_pid);
+        ngx_log_debug2(NGX_LOG_DEBUG_HTTP, log, 0,
+                      "debug http %V %uA",
+                      &r->method_name, r->connection->number);
+
+        //ngx_log_error(NGX_LOG_ERR, r->connection->log, 0, "debug ansi c");
     }
 
     return NGX_DECLINED;
