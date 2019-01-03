@@ -19,16 +19,17 @@ __DATA__
 --- config
     location = /filter {
         ndg_header x-name   chrono;
-        return 200 "hello\n";
+        return 201 "hello";
     }
 
 --- request
 GET /filter
 
+--- error_code : 201
 --- response_headers
 x-name: chrono
 
---- response_body
+--- response_body chomp
 hello
 
 --- error_log
