@@ -116,7 +116,7 @@ static ngx_int_t ngx_http_ndg_debug_handler(ngx_http_request_t *r)
                       "debug http %V %uA",
                       &r->method_name, r->connection->number);
 
-        //ngx_log_error(NGX_LOG_ERR, r->connection->log, 0, "debug ansi c");
+        ngx_log_error(NGX_LOG_ERR, log, 0, "debug ansi c");
     }
 
     return NGX_DECLINED;
