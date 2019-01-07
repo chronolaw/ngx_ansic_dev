@@ -104,7 +104,7 @@ static ngx_int_t ngx_http_ndg_hello_handler(ngx_http_request_t *r)
         printf("hello nginx\n");
         ngx_log_error(NGX_LOG_ERR, r->connection->log, 0, "hello ansi c");
     } else {
-        printf("hello disabled\n");
+        //printf("hello disabled\n");
     }
 
     return NGX_DECLINED;

@@ -10,6 +10,9 @@ prefix="--prefix=/opt/nginx"
 common_opts="--with-threads --with-pcre-jit"
 debug_opts="--with-debug"
 
+# sudo apt-get install google-perftools
+gperf_module="--with-google_perftools_module"
+
 no_modules="--without-http_fastcgi_module
             --without-http_uwsgi_module
             --without-http_scgi_module
@@ -63,6 +66,7 @@ misc_modules="--add-module=${src_path}/misc"
 opts="${prefix}
       ${common_opts}
       ${debug_opts}
+      ${gperf_module}
       ${aux_module}
       ${http_modules}
       ${stream_modules}
