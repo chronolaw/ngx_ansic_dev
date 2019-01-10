@@ -5,6 +5,7 @@ src_path=${HOME}/github/ngx_ansic_dev
 
 build_date="${USER} build at `date '+%Y.%m.%d %H:%M'`"
 cc_opt="-g -O0"
+#cc_opt="-g -O0 -DNGX_DEBUG_PALLOC"
 
 prefix="--prefix=/opt/nginx"
 common_opts="--with-threads --with-pcre-jit"
