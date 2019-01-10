@@ -1,0 +1,1298 @@
+<?xml version="1.0" standalone="no"?>
+<!DOCTYPE svg PUBLIC "-//W3C//DTD SVG 1.1//EN" "http://www.w3.org/Graphics/SVG/1.1/DTD/svg11.dtd">
+<svg version="1.1" width="1200" height="566" onload="init(evt)" viewBox="0 0 1200 566" xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink">
+<!-- Flame graph stack visualization. See https://github.com/brendangregg/FlameGraph for latest version, and http://www.brendangregg.com/flamegraphs.html for examples. -->
+<!-- NOTES:  -->
+<defs >
+	<linearGradient id="background" y1="0" y2="1" x1="0" x2="0" >
+		<stop stop-color="#eeeeee" offset="5%" />
+		<stop stop-color="#eeeeb0" offset="95%" />
+	</linearGradient>
+</defs>
+<style type="text/css">
+	.func_g:hover { stroke:black; stroke-width:0.5; cursor:pointer; }
+</style>
+<script type="text/ecmascript">
+<![CDATA[
+	var details, searchbtn, matchedtxt, svg;
+	function init(evt) {
+		details = document.getElementById("details").firstChild;
+		searchbtn = document.getElementById("search");
+		matchedtxt = document.getElementById("matched");
+		svg = document.getElementsByTagName("svg")[0];
+		searching = 0;
+	}
+
+	// mouse-over for info
+	function s(node) {		// show
+		info = g_to_text(node);
+		details.nodeValue = "Function: " + info;
+	}
+	function c() {			// clear
+		details.nodeValue = ' ';
+	}
+
+	// ctrl-F for search
+	window.addEventListener("keydown",function (e) {
+		if (e.keyCode === 114 || (e.ctrlKey && e.keyCode === 70)) {
+			e.preventDefault();
+			search_prompt();
+		}
+	})
+
+	// functions
+	function find_child(parent, name, attr) {
+		var children = parent.childNodes;
+		for (var i=0; i<children.length;i++) {
+			if (children[i].tagName == name)
+				return (attr != undefined) ? children[i].attributes[attr].value : children[i];
+		}
+		return;
+	}
+	function orig_save(e, attr, val) {
+		if (e.attributes["_orig_"+attr] != undefined) return;
+		if (e.attributes[attr] == undefined) return;
+		if (val == undefined) val = e.attributes[attr].value;
+		e.setAttribute("_orig_"+attr, val);
+	}
+	function orig_load(e, attr) {
+		if (e.attributes["_orig_"+attr] == undefined) return;
+		e.attributes[attr].value = e.attributes["_orig_"+attr].value;
+		e.removeAttribute("_orig_"+attr);
+	}
+	function g_to_text(e) {
+		var text = find_child(e, "title").firstChild.nodeValue;
+		return (text)
+	}
+	function g_to_func(e) {
+		var func = g_to_text(e);
+		// if there's any manipulation we want to do to the function
+		// name before it's searched, do it here before returning.
+		return (func);
+	}
+	function update_text(e) {
+		var r = find_child(e, "rect");
+		var t = find_child(e, "text");
+		var w = parseFloat(r.attributes["width"].value) -3;
+		var txt = find_child(e, "title").textContent.replace(/\([^(]*\)$/,"");
+		t.attributes["x"].value = parseFloat(r.attributes["x"].value) +3;
+
+		// Smaller than this size won't fit anything
+		if (w < 2*12*0.59) {
+			t.textContent = "";
+			return;
+		}
+
+		t.textContent = txt;
+		// Fit in full text width
+		if (/^ *$/.test(txt) || t.getSubStringLength(0, txt.length) < w)
+			return;
+
+		for (var x=txt.length-2; x>0; x--) {
+			if (t.getSubStringLength(0, x+2) <= w) {
+				t.textContent = txt.substring(0,x) + "..";
+				return;
+			}
+		}
+		t.textContent = "";
+	}
+
+	// zoom
+	function zoom_reset(e) {
+		if (e.attributes != undefined) {
+			orig_load(e, "x");
+			orig_load(e, "width");
+		}
+		if (e.childNodes == undefined) return;
+		for(var i=0, c=e.childNodes; i<c.length; i++) {
+			zoom_reset(c[i]);
+		}
+	}
+	function zoom_child(e, x, ratio) {
+		if (e.attributes != undefined) {
+			if (e.attributes["x"] != undefined) {
+				orig_save(e, "x");
+				e.attributes["x"].value = (parseFloat(e.attributes["x"].value) - x - 10) * ratio + 10;
+				if(e.tagName == "text") e.attributes["x"].value = find_child(e.parentNode, "rect", "x") + 3;
+			}
+			if (e.attributes["width"] != undefined) {
+				orig_save(e, "width");
+				e.attributes["width"].value = parseFloat(e.attributes["width"].value) * ratio;
+			}
+		}
+
+		if (e.childNodes == undefined) return;
+		for(var i=0, c=e.childNodes; i<c.length; i++) {
+			zoom_child(c[i], x-10, ratio);
+		}
+	}
+	function zoom_parent(e) {
+		if (e.attributes) {
+			if (e.attributes["x"] != undefined) {
+				orig_save(e, "x");
+				e.attributes["x"].value = 10;
+			}
+			if (e.attributes["width"] != undefined) {
+				orig_save(e, "width");
+				e.attributes["width"].value = parseInt(svg.width.baseVal.value) - (10*2);
+			}
+		}
+		if (e.childNodes == undefined) return;
+		for(var i=0, c=e.childNodes; i<c.length; i++) {
+			zoom_parent(c[i]);
+		}
+	}
+	function zoom(node) {
+		var attr = find_child(node, "rect").attributes;
+		var width = parseFloat(attr["width"].value);
+		var xmin = parseFloat(attr["x"].value);
+		var xmax = parseFloat(xmin + width);
+		var ymin = parseFloat(attr["y"].value);
+		var ratio = (svg.width.baseVal.value - 2*10) / width;
+
+		// XXX: Workaround for JavaScript float issues (fix me)
+		var fudge = 0.0001;
+
+		var unzoombtn = document.getElementById("unzoom");
+		unzoombtn.style["opacity"] = "1.0";
+
+		var el = document.getElementsByTagName("g");
+		for(var i=0;i<el.length;i++){
+			var e = el[i];
+			var a = find_child(e, "rect").attributes;
+			var ex = parseFloat(a["x"].value);
+			var ew = parseFloat(a["width"].value);
+			// Is it an ancestor
+			if (0 == 0) {
+				var upstack = parseFloat(a["y"].value) > ymin;
+			} else {
+				var upstack = parseFloat(a["y"].value) < ymin;
+			}
+			if (upstack) {
+				// Direct ancestor
+				if (ex <= xmin && (ex+ew+fudge) >= xmax) {
+					e.style["opacity"] = "0.5";
+					zoom_parent(e);
+					e.onclick = function(e){unzoom(); zoom(this);};
+					update_text(e);
+				}
+				// not in current path
+				else
+					e.style["display"] = "none";
+			}
+			// Children maybe
+			else {
+				// no common path
+				if (ex < xmin || ex + fudge >= xmax) {
+					e.style["display"] = "none";
+				}
+				else {
+					zoom_child(e, xmin, ratio);
+					e.onclick = function(e){zoom(this);};
+					update_text(e);
+				}
+			}
+		}
+	}
+	function unzoom() {
+		var unzoombtn = document.getElementById("unzoom");
+		unzoombtn.style["opacity"] = "0.0";
+
+		var el = document.getElementsByTagName("g");
+		for(i=0;i<el.length;i++) {
+			el[i].style["display"] = "block";
+			el[i].style["opacity"] = "1";
+			zoom_reset(el[i]);
+			update_text(el[i]);
+		}
+	}
+
+	// search
+	function reset_search() {
+		var el = document.getElementsByTagName("rect");
+		for (var i=0; i < el.length; i++) {
+			orig_load(el[i], "fill")
+		}
+	}
+	function search_prompt() {
+		if (!searching) {
+			var term = prompt("Enter a search term (regexp " +
+			    "allowed, eg: ^ext4_)", "");
+			if (term != null) {
+				search(term)
+			}
+		} else {
+			reset_search();
+			searching = 0;
+			searchbtn.style["opacity"] = "0.1";
+			searchbtn.firstChild.nodeValue = "Search"
+			matchedtxt.style["opacity"] = "0.0";
+			matchedtxt.firstChild.nodeValue = ""
+		}
+	}
+	function search(term) {
+		var re = new RegExp(term);
+		var el = document.getElementsByTagName("g");
+		var matches = new Object();
+		var maxwidth = 0;
+		for (var i = 0; i < el.length; i++) {
+			var e = el[i];
+			if (e.attributes["class"].value != "func_g")
+				continue;
+			var func = g_to_func(e);
+			var rect = find_child(e, "rect");
+			if (rect == null) {
+				// the rect might be wrapped in an anchor
+				// if nameattr href is being used
+				if (rect = find_child(e, "a")) {
+				    rect = find_child(r, "rect");
+				}
+			}
+			if (func == null || rect == null)
+				continue;
+
+			// Save max width. Only works as we have a root frame
+			var w = parseFloat(rect.attributes["width"].value);
+			if (w > maxwidth)
+				maxwidth = w;
+
+			if (func.match(re)) {
+				// highlight
+				var x = parseFloat(rect.attributes["x"].value);
+				orig_save(rect, "fill");
+				rect.attributes["fill"].value =
+				    "rgb(230,0,230)";
+
+				// remember matches
+				if (matches[x] == undefined) {
+					matches[x] = w;
+				} else {
+					if (w > matches[x]) {
+						// overwrite with parent
+						matches[x] = w;
+					}
+				}
+				searching = 1;
+			}
+		}
+		if (!searching)
+			return;
+
+		searchbtn.style["opacity"] = "1.0";
+		searchbtn.firstChild.nodeValue = "Reset Search"
+
+		// calculate percent matched, excluding vertical overlap
+		var count = 0;
+		var lastx = -1;
+		var lastw = 0;
+		var keys = Array();
+		for (k in matches) {
+			if (matches.hasOwnProperty(k))
+				keys.push(k);
+		}
+		// sort the matched frames by their x location
+		// ascending, then width descending
+		keys.sort(function(a, b){
+			return a - b;
+		});
+		// Step through frames saving only the biggest bottom-up frames
+		// thanks to the sort order. This relies on the tree property
+		// where children are always smaller than their parents.
+		var fudge = 0.0001;	// JavaScript floating point
+		for (var k in keys) {
+			var x = parseFloat(keys[k]);
+			var w = matches[keys[k]];
+			if (x >= lastx + lastw - fudge) {
+				count += w;
+				lastx = x;
+				lastw = w;
+			}
+		}
+		// display matched percent
+		matchedtxt.style["opacity"] = "1.0";
+		pct = 100 * count / maxwidth;
+		if (pct == 100)
+			pct = "100"
+		else
+			pct = pct.toFixed(1)
+		matchedtxt.firstChild.nodeValue = "Matched: " + pct + "%";
+	}
+	function searchover(e) {
+		searchbtn.style["opacity"] = "1.0";
+	}
+	function searchout(e) {
+		if (searching) {
+			searchbtn.style["opacity"] = "1.0";
+		} else {
+			searchbtn.style["opacity"] = "0.1";
+		}
+	}
+]]>
+</script>
+<rect x="0.0" y="0" width="1200.0" height="566.0" fill="url(#background)"  />
+<text text-anchor="middle" x="600.00" y="24" font-size="17" font-family="Verdana" fill="rgb(0,0,0)"  >Flame Graph</text>
+<text text-anchor="" x="10.00" y="549" font-size="12" font-family="Verdana" fill="rgb(0,0,0)" id="details" > </text>
+<text text-anchor="" x="10.00" y="24" font-size="12" font-family="Verdana" fill="rgb(0,0,0)" id="unzoom" onclick="unzoom()" style="opacity:0.0;cursor:pointer" >Reset Zoom</text>
+<text text-anchor="" x="1090.00" y="24" font-size="12" font-family="Verdana" fill="rgb(0,0,0)" id="search" onmouseover="searchover()" onmouseout="searchout()" onclick="search_prompt()" style="opacity:0.1;cursor:pointer" >Search</text>
+<text text-anchor="" x="1090.00" y="549" font-size="12" font-family="Verdana" fill="rgb(0,0,0)" id="matched" > </text>
+<g class="func_g" onmouseover="s(this)" onmouseout="c()" onclick="zoom(this)">
+<title>ngx_pcalloc (5 samples, 0.25%)</title><rect x="254.3" y="373" width="3.0" height="15.0" fill="rgb(206,34,8)" rx="2" ry="2" />
+<text text-anchor="" x="257.28" y="383.5" font-size="12" font-family="Verdana" fill="rgb(0,0,0)"  ></text>
+</g>
+<g class="func_g" onmouseover="s(this)" onmouseout="c()" onclick="zoom(this)">
+<title>ngx_palloc (1 samples, 0.05%)</title><rect x="224.9" y="389" width="0.6" height="15.0" fill="rgb(245,153,0)" rx="2" ry="2" />
+<text text-anchor="" x="227.87" y="399.5" font-size="12" font-family="Verdana" fill="rgb(0,0,0)"  ></text>
+</g>
+<g class="func_g" onmouseover="s(this)" onmouseout="c()" onclick="zoom(this)">
+<title>ngx_palloc (1 samples, 0.05%)</title><rect x="765.1" y="69" width="0.6" height="15.0" fill="rgb(253,148,1)" rx="2" ry="2" />
+<text text-anchor="" x="768.06" y="79.5" font-size="12" font-family="Verdana" fill="rgb(0,0,0)"  ></text>
+</g>
+<g class="func_g" onmouseover="s(this)" onmouseout="c()" onclick="zoom(this)">
+<title>ngx_http_ndg_variable_handler (5 samples, 0.25%)</title><rect x="725.4" y="213" width="3.0" height="15.0" fill="rgb(210,72,14)" rx="2" ry="2" />
+<text text-anchor="" x="728.44" y="223.5" font-size="12" font-family="Verdana" fill="rgb(0,0,0)"  ></text>
+</g>
+<g class="func_g" onmouseover="s(this)" onmouseout="c()" onclick="zoom(this)">
+<title>ngx_destroy_pool (6 samples, 0.31%)</title><rect x="547.2" y="229" width="3.6" height="15.0" fill="rgb(208,86,48)" rx="2" ry="2" />
+<text text-anchor="" x="550.18" y="239.5" font-size="12" font-family="Verdana" fill="rgb(0,0,0)"  ></text>
+</g>
+<g class="func_g" onmouseover="s(this)" onmouseout="c()" onclick="zoom(this)">
+<title>main (1,948 samples, 99.08%)</title><rect x="20.8" y="469" width="1169.2" height="15.0" fill="rgb(229,171,32)" rx="2" ry="2" />
+<text text-anchor="" x="23.80" y="479.5" font-size="12" font-family="Verdana" fill="rgb(0,0,0)"  >main</text>
+</g>
+<g class="func_g" onmouseover="s(this)" onmouseout="c()" onclick="zoom(this)">
+<title>recv (90 samples, 4.58%)</title><rect x="1129.4" y="373" width="54.0" height="15.0" fill="rgb(214,88,52)" rx="2" ry="2" />
+<text text-anchor="" x="1132.38" y="383.5" font-size="12" font-family="Verdana" fill="rgb(0,0,0)"  >recv</text>
+</g>
+<g class="func_g" onmouseover="s(this)" onmouseout="c()" onclick="zoom(this)">
+<title>ngx_pcalloc (5 samples, 0.25%)</title><rect x="1073.6" y="229" width="3.0" height="15.0" fill="rgb(242,15,40)" rx="2" ry="2" />
+<text text-anchor="" x="1076.56" y="239.5" font-size="12" font-family="Verdana" fill="rgb(0,0,0)"  ></text>
+</g>
+<g class="func_g" onmouseover="s(this)" onmouseout="c()" onclick="zoom(this)">
+<title>ngx_process_events_and_timers (1,943 samples, 98.83%)</title><rect x="23.8" y="437" width="1166.2" height="15.0" fill="rgb(253,47,44)" rx="2" ry="2" />
+<text text-anchor="" x="26.80" y="447.5" font-size="12" font-family="Verdana" fill="rgb(0,0,0)"  >ngx_process_events_and_timers</text>
+</g>
+<g class="func_g" onmouseover="s(this)" onmouseout="c()" onclick="zoom(this)">
+<title>__close (365 samples, 18.57%)</title><rect x="326.3" y="213" width="219.1" height="15.0" fill="rgb(244,34,23)" rx="2" ry="2" />
+<text text-anchor="" x="329.31" y="223.5" font-size="12" font-family="Verdana" fill="rgb(0,0,0)"  >__close</text>
+</g>
+<g class="func_g" onmouseover="s(this)" onmouseout="c()" onclick="zoom(this)">
+<title>accept4 (142 samples, 7.22%)</title><rect x="82.6" y="389" width="85.3" height="15.0" fill="rgb(212,94,27)" rx="2" ry="2" />
+<text text-anchor="" x="85.62" y="399.5" font-size="12" font-family="Verdana" fill="rgb(0,0,0)"  >accept4</text>
+</g>
+<g class="func_g" onmouseover="s(this)" onmouseout="c()" onclick="zoom(this)">
+<title>ngx_http_send_header (50 samples, 2.54%)</title><rect x="1046.6" y="277" width="30.0" height="15.0" fill="rgb(227,192,31)" rx="2" ry="2" />
+<text text-anchor="" x="1049.55" y="287.5" font-size="12" font-family="Verdana" fill="rgb(0,0,0)"  >ng..</text>
+</g>
+<g class="func_g" onmouseover="s(this)" onmouseout="c()" onclick="zoom(this)">
+<title>ngx_http_process_request (1,331 samples, 67.70%)</title><rect x="301.1" y="357" width="798.9" height="15.0" fill="rgb(227,112,30)" rx="2" ry="2" />
+<text text-anchor="" x="304.10" y="367.5" font-size="12" font-family="Verdana" fill="rgb(0,0,0)"  >ngx_http_process_request</text>
+</g>
+<g class="func_g" onmouseover="s(this)" onmouseout="c()" onclick="zoom(this)">
+<title>ngx_epoll_del_connection (3 samples, 0.15%)</title><rect x="545.4" y="213" width="1.8" height="15.0" fill="rgb(213,7,4)" rx="2" ry="2" />
+<text text-anchor="" x="548.38" y="223.5" font-size="12" font-family="Verdana" fill="rgb(0,0,0)"  ></text>
+</g>
+<g class="func_g" onmouseover="s(this)" onmouseout="c()" onclick="zoom(this)">
+<title>ngx_http_log_variable_getlen (25 samples, 1.27%)</title><rect x="590.4" y="197" width="15.0" height="15.0" fill="rgb(206,112,38)" rx="2" ry="2" />
+<text text-anchor="" x="593.40" y="207.5" font-size="12" font-family="Verdana" fill="rgb(0,0,0)"  ></text>
+</g>
+<g class="func_g" onmouseover="s(this)" onmouseout="c()" onclick="zoom(this)">
+<title>ngx_epoll_process_events (1,936 samples, 98.47%)</title><rect x="26.2" y="421" width="1162.0" height="15.0" fill="rgb(217,192,26)" rx="2" ry="2" />
+<text text-anchor="" x="29.21" y="431.5" font-size="12" font-family="Verdana" fill="rgb(0,0,0)"  >ngx_epoll_process_events</text>
+</g>
+<g class="func_g" onmouseover="s(this)" onmouseout="c()" onclick="zoom(this)">
+<title>ngx_linux_sendfile_chain (466 samples, 23.70%)</title><rect x="765.7" y="85" width="279.7" height="15.0" fill="rgb(228,21,2)" rx="2" ry="2" />
+<text text-anchor="" x="768.66" y="95.5" font-size="12" font-family="Verdana" fill="rgb(0,0,0)"  >ngx_linux_sendfile_chain</text>
+</g>
+<g class="func_g" onmouseover="s(this)" onmouseout="c()" onclick="zoom(this)">
+<title>ngx_http_close_connection (377 samples, 19.18%)</title><rect x="324.5" y="245" width="226.3" height="15.0" fill="rgb(234,117,51)" rx="2" ry="2" />
+<text text-anchor="" x="327.51" y="255.5" font-size="12" font-family="Verdana" fill="rgb(0,0,0)"  >ngx_http_close_connection</text>
+</g>
+<g class="func_g" onmouseover="s(this)" onmouseout="c()" onclick="zoom(this)">
+<title>ngx_http_ndg_subrequest_handler (1 samples, 0.05%)</title><rect x="319.1" y="293" width="0.6" height="15.0" fill="rgb(214,61,2)" rx="2" ry="2" />
+<text text-anchor="" x="322.10" y="303.5" font-size="12" font-family="Verdana" fill="rgb(0,0,0)"  ></text>
+</g>
+<g class="func_g" onmouseover="s(this)" onmouseout="c()" onclick="zoom(this)">
+<title>ngx_filename_cmp (2 samples, 0.10%)</title><rect x="1082.0" y="261" width="1.2" height="15.0" fill="rgb(248,31,39)" rx="2" ry="2" />
+<text text-anchor="" x="1084.96" y="271.5" font-size="12" font-family="Verdana" fill="rgb(0,0,0)"  ></text>
+</g>
+<g class="func_g" onmouseover="s(this)" onmouseout="c()" onclick="zoom(this)">
+<title>ngx_pcalloc (5 samples, 0.25%)</title><rect x="242.3" y="373" width="3.0" height="15.0" fill="rgb(210,145,18)" rx="2" ry="2" />
+<text text-anchor="" x="245.28" y="383.5" font-size="12" font-family="Verdana" fill="rgb(0,0,0)"  ></text>
+</g>
+<g class="func_g" onmouseover="s(this)" onmouseout="c()" onclick="zoom(this)">
+<title>ngx_handle_read_event (63 samples, 3.20%)</title><rect x="182.9" y="373" width="37.8" height="15.0" fill="rgb(207,31,50)" rx="2" ry="2" />
+<text text-anchor="" x="185.86" y="383.5" font-size="12" font-family="Verdana" fill="rgb(0,0,0)"  >ngx..</text>
+</g>
+<g class="func_g" onmouseover="s(this)" onmouseout="c()" onclick="zoom(this)">
+<title>ngx_http_auth_basic_handler (3 samples, 0.15%)</title><rect x="316.1" y="293" width="1.8" height="15.0" fill="rgb(215,209,33)" rx="2" ry="2" />
+<text text-anchor="" x="319.10" y="303.5" font-size="12" font-family="Verdana" fill="rgb(0,0,0)"  ></text>
+</g>
+<g class="func_g" onmouseover="s(this)" onmouseout="c()" onclick="zoom(this)">
+<title>ngx_http_core_content_phase (1,261 samples, 64.14%)</title><rect x="319.7" y="309" width="756.9" height="15.0" fill="rgb(236,196,7)" rx="2" ry="2" />
+<text text-anchor="" x="322.70" y="319.5" font-size="12" font-family="Verdana" fill="rgb(0,0,0)"  >ngx_http_core_content_phase</text>
+</g>
+<g class="func_g" onmouseover="s(this)" onmouseout="c()" onclick="zoom(this)">
+<title>ngx_palloc_large (2 samples, 0.10%)</title><rect x="241.1" y="357" width="1.2" height="15.0" fill="rgb(248,186,17)" rx="2" ry="2" />
+<text text-anchor="" x="244.08" y="367.5" font-size="12" font-family="Verdana" fill="rgb(0,0,0)"  ></text>
+</g>
+<g class="func_g" onmouseover="s(this)" onmouseout="c()" onclick="zoom(this)">
+<title>ngx_rbtree_insert_timer_value (3 samples, 0.15%)</title><rect x="181.1" y="341" width="1.8" height="15.0" fill="rgb(217,123,28)" rx="2" ry="2" />
+<text text-anchor="" x="184.06" y="351.5" font-size="12" font-family="Verdana" fill="rgb(0,0,0)"  ></text>
+</g>
+<g class="func_g" onmouseover="s(this)" onmouseout="c()" onclick="zoom(this)">
+<title>ngx_event_del_timer (4 samples, 0.20%)</title><rect x="302.3" y="341" width="2.4" height="15.0" fill="rgb(216,187,0)" rx="2" ry="2" />
+<text text-anchor="" x="305.30" y="351.5" font-size="12" font-family="Verdana" fill="rgb(0,0,0)"  ></text>
+</g>
+<g class="func_g" onmouseover="s(this)" onmouseout="c()" onclick="zoom(this)">
+<title>ngx_http_gzip_body_filter (488 samples, 24.82%)</title><rect x="752.5" y="133" width="292.9" height="15.0" fill="rgb(249,224,31)" rx="2" ry="2" />
+<text text-anchor="" x="755.45" y="143.5" font-size="12" font-family="Verdana" fill="rgb(0,0,0)"  >ngx_http_gzip_body_filter</text>
+</g>
+<g class="func_g" onmouseover="s(this)" onmouseout="c()" onclick="zoom(this)">
+<title>__strncmp_sse42 (3 samples, 0.15%)</title><rect x="1114.4" y="325" width="1.8" height="15.0" fill="rgb(216,139,25)" rx="2" ry="2" />
+<text text-anchor="" x="1117.37" y="335.5" font-size="12" font-family="Verdana" fill="rgb(0,0,0)"  ></text>
+</g>
+<g class="func_g" onmouseover="s(this)" onmouseout="c()" onclick="zoom(this)">
+<title>__memset_avx2_unaligned_erms (1 samples, 0.05%)</title><rect x="1076.0" y="213" width="0.6" height="15.0" fill="rgb(211,84,42)" rx="2" ry="2" />
+<text text-anchor="" x="1078.96" y="223.5" font-size="12" font-family="Verdana" fill="rgb(0,0,0)"  ></text>
+</g>
+<g class="func_g" onmouseover="s(this)" onmouseout="c()" onclick="zoom(this)">
+<title>ngx_http_handler (1,325 samples, 67.40%)</title><rect x="304.7" y="341" width="795.3" height="15.0" fill="rgb(233,220,3)" rx="2" ry="2" />
+<text text-anchor="" x="307.70" y="351.5" font-size="12" font-family="Verdana" fill="rgb(0,0,0)"  >ngx_http_handler</text>
+</g>
+<g class="func_g" onmouseover="s(this)" onmouseout="c()" onclick="zoom(this)">
+<title>ngx_http_charset_header_filter (30 samples, 1.53%)</title><rect x="1055.6" y="197" width="18.0" height="15.0" fill="rgb(216,154,47)" rx="2" ry="2" />
+<text text-anchor="" x="1058.55" y="207.5" font-size="12" font-family="Verdana" fill="rgb(0,0,0)"  ></text>
+</g>
+<g class="func_g" onmouseover="s(this)" onmouseout="c()" onclick="zoom(this)">
+<title>ngx_http_core_access_phase (14 samples, 0.71%)</title><rect x="311.3" y="309" width="8.4" height="15.0" fill="rgb(249,180,8)" rx="2" ry="2" />
+<text text-anchor="" x="314.30" y="319.5" font-size="12" font-family="Verdana" fill="rgb(0,0,0)"  ></text>
+</g>
+<g class="func_g" onmouseover="s(this)" onmouseout="c()" onclick="zoom(this)">
+<title>ngx_single_process_cycle (1,948 samples, 99.08%)</title><rect x="20.8" y="453" width="1169.2" height="15.0" fill="rgb(208,143,27)" rx="2" ry="2" />
+<text text-anchor="" x="23.80" y="463.5" font-size="12" font-family="Verdana" fill="rgb(0,0,0)"  >ngx_single_process_cycle</text>
+</g>
+<g class="func_g" onmouseover="s(this)" onmouseout="c()" onclick="zoom(this)">
+<title>ngx_palloc_block (8 samples, 0.41%)</title><rect x="1124.0" y="325" width="4.8" height="15.0" fill="rgb(224,54,5)" rx="2" ry="2" />
+<text text-anchor="" x="1126.98" y="335.5" font-size="12" font-family="Verdana" fill="rgb(0,0,0)"  ></text>
+</g>
+<g class="func_g" onmouseover="s(this)" onmouseout="c()" onclick="zoom(this)">
+<title>ngx_vslprintf (3 samples, 0.15%)</title><rect x="1071.8" y="85" width="1.8" height="15.0" fill="rgb(226,19,7)" rx="2" ry="2" />
+<text text-anchor="" x="1074.76" y="95.5" font-size="12" font-family="Verdana" fill="rgb(0,0,0)"  ></text>
+</g>
+<g class="func_g" onmouseover="s(this)" onmouseout="c()" onclick="zoom(this)">
+<title>ngx_http_log_write (199 samples, 10.12%)</title><rect x="605.4" y="197" width="119.4" height="15.0" fill="rgb(224,13,21)" rx="2" ry="2" />
+<text text-anchor="" x="608.40" y="207.5" font-size="12" font-family="Verdana" fill="rgb(0,0,0)"  >ngx_http_log_w..</text>
+</g>
+<g class="func_g" onmouseover="s(this)" onmouseout="c()" onclick="zoom(this)">
+<title>ngx_close_connection (369 samples, 18.77%)</title><rect x="325.7" y="229" width="221.5" height="15.0" fill="rgb(209,177,20)" rx="2" ry="2" />
+<text text-anchor="" x="328.71" y="239.5" font-size="12" font-family="Verdana" fill="rgb(0,0,0)"  >ngx_close_connection</text>
+</g>
+<g class="func_g" onmouseover="s(this)" onmouseout="c()" onclick="zoom(this)">
+<title>__pthread_disable_asynccancel (3 samples, 0.15%)</title><rect x="543.6" y="197" width="1.8" height="15.0" fill="rgb(234,46,20)" rx="2" ry="2" />
+<text text-anchor="" x="546.58" y="207.5" font-size="12" font-family="Verdana" fill="rgb(0,0,0)"  ></text>
+</g>
+<g class="func_g" onmouseover="s(this)" onmouseout="c()" onclick="zoom(this)">
+<title>__libc_start_main (1,948 samples, 99.08%)</title><rect x="20.8" y="485" width="1169.2" height="15.0" fill="rgb(234,196,45)" rx="2" ry="2" />
+<text text-anchor="" x="23.80" y="495.5" font-size="12" font-family="Verdana" fill="rgb(0,0,0)"  >__libc_start_main</text>
+</g>
+<g class="func_g" onmouseover="s(this)" onmouseout="c()" onclick="zoom(this)">
+<title>ngx_http_headers_filter (35 samples, 1.78%)</title><rect x="1052.6" y="229" width="21.0" height="15.0" fill="rgb(238,7,52)" rx="2" ry="2" />
+<text text-anchor="" x="1055.55" y="239.5" font-size="12" font-family="Verdana" fill="rgb(0,0,0)"  ></text>
+</g>
+<g class="func_g" onmouseover="s(this)" onmouseout="c()" onclick="zoom(this)">
+<title>ngx_http_userid_filter (34 samples, 1.73%)</title><rect x="1053.2" y="213" width="20.4" height="15.0" fill="rgb(210,205,3)" rx="2" ry="2" />
+<text text-anchor="" x="1056.15" y="223.5" font-size="12" font-family="Verdana" fill="rgb(0,0,0)"  ></text>
+</g>
+<g class="func_g" onmouseover="s(this)" onmouseout="c()" onclick="zoom(this)">
+<title>ngx_vslprintf (3 samples, 0.15%)</title><rect x="567.6" y="165" width="1.8" height="15.0" fill="rgb(230,174,54)" rx="2" ry="2" />
+<text text-anchor="" x="570.59" y="175.5" font-size="12" font-family="Verdana" fill="rgb(0,0,0)"  ></text>
+</g>
+<g class="func_g" onmouseover="s(this)" onmouseout="c()" onclick="zoom(this)">
+<title>ngx_event_add_timer (5 samples, 0.25%)</title><rect x="179.9" y="373" width="3.0" height="15.0" fill="rgb(250,16,2)" rx="2" ry="2" />
+<text text-anchor="" x="182.86" y="383.5" font-size="12" font-family="Verdana" fill="rgb(0,0,0)"  ></text>
+</g>
+<g class="func_g" onmouseover="s(this)" onmouseout="c()" onclick="zoom(this)">
+<title>ngx_pcalloc (1 samples, 0.05%)</title><rect x="1046.0" y="229" width="0.6" height="15.0" fill="rgb(222,207,27)" rx="2" ry="2" />
+<text text-anchor="" x="1048.95" y="239.5" font-size="12" font-family="Verdana" fill="rgb(0,0,0)"  ></text>
+</g>
+<g class="func_g" onmouseover="s(this)" onmouseout="c()" onclick="zoom(this)">
+<title>epoll_wait (78 samples, 3.97%)</title><rect x="29.8" y="405" width="46.8" height="15.0" fill="rgb(208,132,22)" rx="2" ry="2" />
+<text text-anchor="" x="32.81" y="415.5" font-size="12" font-family="Verdana" fill="rgb(0,0,0)"  >epol..</text>
+</g>
+<g class="func_g" onmouseover="s(this)" onmouseout="c()" onclick="zoom(this)">
+<title>ngx_event_find_timer (1 samples, 0.05%)</title><rect x="1188.2" y="421" width="0.6" height="15.0" fill="rgb(216,50,12)" rx="2" ry="2" />
+<text text-anchor="" x="1191.20" y="431.5" font-size="12" font-family="Verdana" fill="rgb(0,0,0)"  ></text>
+</g>
+<g class="func_g" onmouseover="s(this)" onmouseout="c()" onclick="zoom(this)">
+<title>ngx_http_log_status (14 samples, 0.71%)</title><rect x="573.0" y="197" width="8.4" height="15.0" fill="rgb(215,185,54)" rx="2" ry="2" />
+<text text-anchor="" x="575.99" y="207.5" font-size="12" font-family="Verdana" fill="rgb(0,0,0)"  ></text>
+</g>
+<g class="func_g" onmouseover="s(this)" onmouseout="c()" onclick="zoom(this)">
+<title>ngx_localtime (1 samples, 0.05%)</title><rect x="1186.4" y="389" width="0.6" height="15.0" fill="rgb(225,57,35)" rx="2" ry="2" />
+<text text-anchor="" x="1189.40" y="399.5" font-size="12" font-family="Verdana" fill="rgb(0,0,0)"  ></text>
+</g>
+<g class="func_g" onmouseover="s(this)" onmouseout="c()" onclick="zoom(this)">
+<title>ngx_palloc_small (1 samples, 0.05%)</title><rect x="730.8" y="245" width="0.6" height="15.0" fill="rgb(211,34,10)" rx="2" ry="2" />
+<text text-anchor="" x="733.84" y="255.5" font-size="12" font-family="Verdana" fill="rgb(0,0,0)"  ></text>
+</g>
+<g class="func_g" onmouseover="s(this)" onmouseout="c()" onclick="zoom(this)">
+<title>_Ux86_64_getcontext (3 samples, 0.15%)</title><rect x="14.8" y="373" width="1.8" height="15.0" fill="rgb(250,34,39)" rx="2" ry="2" />
+<text text-anchor="" x="17.80" y="383.5" font-size="12" font-family="Verdana" fill="rgb(0,0,0)"  ></text>
+</g>
+<g class="func_g" onmouseover="s(this)" onmouseout="c()" onclick="zoom(this)">
+<title>ngx_event_accept (263 samples, 13.38%)</title><rect x="76.6" y="405" width="157.9" height="15.0" fill="rgb(211,157,36)" rx="2" ry="2" />
+<text text-anchor="" x="79.62" y="415.5" font-size="12" font-family="Verdana" fill="rgb(0,0,0)"  >ngx_event_accept</text>
+</g>
+<g class="func_g" onmouseover="s(this)" onmouseout="c()" onclick="zoom(this)">
+<title>ngx_memalign (10 samples, 0.51%)</title><rect x="248.3" y="357" width="6.0" height="15.0" fill="rgb(250,38,9)" rx="2" ry="2" />
+<text text-anchor="" x="251.28" y="367.5" font-size="12" font-family="Verdana" fill="rgb(0,0,0)"  ></text>
+</g>
+<g class="func_g" onmouseover="s(this)" onmouseout="c()" onclick="zoom(this)">
+<title>ngx_http_process_request_uri (6 samples, 0.31%)</title><rect x="1118.6" y="373" width="3.6" height="15.0" fill="rgb(226,98,7)" rx="2" ry="2" />
+<text text-anchor="" x="1121.58" y="383.5" font-size="12" font-family="Verdana" fill="rgb(0,0,0)"  ></text>
+</g>
+<g class="func_g" onmouseover="s(this)" onmouseout="c()" onclick="zoom(this)">
+<title>ngx_http_access_handler (2 samples, 0.10%)</title><rect x="314.9" y="293" width="1.2" height="15.0" fill="rgb(223,48,47)" rx="2" ry="2" />
+<text text-anchor="" x="317.90" y="303.5" font-size="12" font-family="Verdana" fill="rgb(0,0,0)"  ></text>
+</g>
+<g class="func_g" onmouseover="s(this)" onmouseout="c()" onclick="zoom(this)">
+<title>ngx_http_output_filter (521 samples, 26.50%)</title><rect x="733.8" y="277" width="312.8" height="15.0" fill="rgb(243,175,39)" rx="2" ry="2" />
+<text text-anchor="" x="736.85" y="287.5" font-size="12" font-family="Verdana" fill="rgb(0,0,0)"  >ngx_http_output_filter</text>
+</g>
+<g class="func_g" onmouseover="s(this)" onmouseout="c()" onclick="zoom(this)">
+<title>ngx_sprintf (12 samples, 0.61%)</title><rect x="574.2" y="181" width="7.2" height="15.0" fill="rgb(232,106,24)" rx="2" ry="2" />
+<text text-anchor="" x="577.19" y="191.5" font-size="12" font-family="Verdana" fill="rgb(0,0,0)"  ></text>
+</g>
+<g class="func_g" onmouseover="s(this)" onmouseout="c()" onclick="zoom(this)">
+<title>sigprocmask (7 samples, 0.36%)</title><rect x="16.6" y="373" width="4.2" height="15.0" fill="rgb(210,71,40)" rx="2" ry="2" />
+<text text-anchor="" x="19.60" y="383.5" font-size="12" font-family="Verdana" fill="rgb(0,0,0)"  ></text>
+</g>
+<g class="func_g" onmouseover="s(this)" onmouseout="c()" onclick="zoom(this)">
+<title>ngx_http_find_virtual_server (1 samples, 0.05%)</title><rect x="297.5" y="325" width="0.6" height="15.0" fill="rgb(231,96,19)" rx="2" ry="2" />
+<text text-anchor="" x="300.50" y="335.5" font-size="12" font-family="Verdana" fill="rgb(0,0,0)"  ></text>
+</g>
+<g class="func_g" onmouseover="s(this)" onmouseout="c()" onclick="zoom(this)">
+<title>ngx_http_range_header_filter (24 samples, 1.22%)</title><rect x="1059.2" y="149" width="14.4" height="15.0" fill="rgb(243,191,26)" rx="2" ry="2" />
+<text text-anchor="" x="1062.16" y="159.5" font-size="12" font-family="Verdana" fill="rgb(0,0,0)"  ></text>
+</g>
+<g class="func_g" onmouseover="s(this)" onmouseout="c()" onclick="zoom(this)">
+<title>ngx_reusable_connection (2 samples, 0.10%)</title><rect x="223.7" y="373" width="1.2" height="15.0" fill="rgb(246,13,10)" rx="2" ry="2" />
+<text text-anchor="" x="226.67" y="383.5" font-size="12" font-family="Verdana" fill="rgb(0,0,0)"  ></text>
+</g>
+<g class="func_g" onmouseover="s(this)" onmouseout="c()" onclick="zoom(this)">
+<title>ngx_http_ssi_body_filter (495 samples, 25.18%)</title><rect x="748.3" y="165" width="297.1" height="15.0" fill="rgb(218,20,53)" rx="2" ry="2" />
+<text text-anchor="" x="751.25" y="175.5" font-size="12" font-family="Verdana" fill="rgb(0,0,0)"  >ngx_http_ssi_body_filter</text>
+</g>
+<g class="func_g" onmouseover="s(this)" onmouseout="c()" onclick="zoom(this)">
+<title>ngx_alloc_chain_link (1 samples, 0.05%)</title><rect x="765.1" y="85" width="0.6" height="15.0" fill="rgb(249,51,20)" rx="2" ry="2" />
+<text text-anchor="" x="768.06" y="95.5" font-size="12" font-family="Verdana" fill="rgb(0,0,0)"  ></text>
+</g>
+<g class="func_g" onmouseover="s(this)" onmouseout="c()" onclick="zoom(this)">
+<title>ngx_create_temp_buf (4 samples, 0.20%)</title><rect x="731.4" y="277" width="2.4" height="15.0" fill="rgb(215,200,8)" rx="2" ry="2" />
+<text text-anchor="" x="734.44" y="287.5" font-size="12" font-family="Verdana" fill="rgb(0,0,0)"  ></text>
+</g>
+<g class="func_g" onmouseover="s(this)" onmouseout="c()" onclick="zoom(this)">
+<title>ngx_http_process_user_agent (27 samples, 1.37%)</title><rect x="1100.6" y="357" width="16.2" height="15.0" fill="rgb(248,159,32)" rx="2" ry="2" />
+<text text-anchor="" x="1103.57" y="367.5" font-size="12" font-family="Verdana" fill="rgb(0,0,0)"  ></text>
+</g>
+<g class="func_g" onmouseover="s(this)" onmouseout="c()" onclick="zoom(this)">
+<title>0x7ffd9d163d79 (1 samples, 0.05%)</title><rect x="13.0" y="501" width="0.6" height="15.0" fill="rgb(252,32,22)" rx="2" ry="2" />
+<text text-anchor="" x="16.00" y="511.5" font-size="12" font-family="Verdana" fill="rgb(0,0,0)"  ></text>
+</g>
+<g class="func_g" onmouseover="s(this)" onmouseout="c()" onclick="zoom(this)">
+<title>ngx_palloc_small (1 samples, 0.05%)</title><rect x="1067.6" y="69" width="0.6" height="15.0" fill="rgb(252,83,33)" rx="2" ry="2" />
+<text text-anchor="" x="1070.56" y="79.5" font-size="12" font-family="Verdana" fill="rgb(0,0,0)"  ></text>
+</g>
+<g class="func_g" onmouseover="s(this)" onmouseout="c()" onclick="zoom(this)">
+<title>ngx_sprintf (5 samples, 0.25%)</title><rect x="1070.6" y="101" width="3.0" height="15.0" fill="rgb(234,11,41)" rx="2" ry="2" />
+<text text-anchor="" x="1073.56" y="111.5" font-size="12" font-family="Verdana" fill="rgb(0,0,0)"  ></text>
+</g>
+<g class="func_g" onmouseover="s(this)" onmouseout="c()" onclick="zoom(this)">
+<title>__libc_disable_asynccancel (1 samples, 0.05%)</title><rect x="167.3" y="373" width="0.6" height="15.0" fill="rgb(212,203,54)" rx="2" ry="2" />
+<text text-anchor="" x="170.25" y="383.5" font-size="12" font-family="Verdana" fill="rgb(0,0,0)"  ></text>
+</g>
+<g class="func_g" onmouseover="s(this)" onmouseout="c()" onclick="zoom(this)">
+<title>ngx_get_connection (7 samples, 0.36%)</title><rect x="171.5" y="389" width="4.2" height="15.0" fill="rgb(227,9,15)" rx="2" ry="2" />
+<text text-anchor="" x="174.45" y="399.5" font-size="12" font-family="Verdana" fill="rgb(0,0,0)"  ></text>
+</g>
+<g class="func_g" onmouseover="s(this)" onmouseout="c()" onclick="zoom(this)">
+<title>ngx_write_fd (198 samples, 10.07%)</title><rect x="606.0" y="181" width="118.8" height="15.0" fill="rgb(244,137,19)" rx="2" ry="2" />
+<text text-anchor="" x="609.00" y="191.5" font-size="12" font-family="Verdana" fill="rgb(0,0,0)"  >ngx_write_fd</text>
+</g>
+<g class="func_g" onmouseover="s(this)" onmouseout="c()" onclick="zoom(this)">
+<title>ngx_palloc (10 samples, 0.51%)</title><rect x="1122.8" y="357" width="6.0" height="15.0" fill="rgb(228,200,17)" rx="2" ry="2" />
+<text text-anchor="" x="1125.78" y="367.5" font-size="12" font-family="Verdana" fill="rgb(0,0,0)"  ></text>
+</g>
+<g class="func_g" onmouseover="s(this)" onmouseout="c()" onclick="zoom(this)">
+<title>ngx_http_process_request_header (1 samples, 0.05%)</title><rect x="1100.0" y="357" width="0.6" height="15.0" fill="rgb(233,14,3)" rx="2" ry="2" />
+<text text-anchor="" x="1102.97" y="367.5" font-size="12" font-family="Verdana" fill="rgb(0,0,0)"  ></text>
+</g>
+<g class="func_g" onmouseover="s(this)" onmouseout="c()" onclick="zoom(this)">
+<title>posix_memalign (10 samples, 0.51%)</title><rect x="248.3" y="341" width="6.0" height="15.0" fill="rgb(229,213,1)" rx="2" ry="2" />
+<text text-anchor="" x="251.28" y="351.5" font-size="12" font-family="Verdana" fill="rgb(0,0,0)"  ></text>
+</g>
+<g class="func_g" onmouseover="s(this)" onmouseout="c()" onclick="zoom(this)">
+<title>ngx_http_ndg_header_filter (44 samples, 2.24%)</title><rect x="1050.2" y="245" width="26.4" height="15.0" fill="rgb(216,101,42)" rx="2" ry="2" />
+<text text-anchor="" x="1053.15" y="255.5" font-size="12" font-family="Verdana" fill="rgb(0,0,0)"  >n..</text>
+</g>
+<g class="func_g" onmouseover="s(this)" onmouseout="c()" onclick="zoom(this)">
+<title>ngx_http_ndg_body_filter (501 samples, 25.48%)</title><rect x="744.6" y="213" width="300.8" height="15.0" fill="rgb(242,10,46)" rx="2" ry="2" />
+<text text-anchor="" x="747.65" y="223.5" font-size="12" font-family="Verdana" fill="rgb(0,0,0)"  >ngx_http_ndg_body_filter</text>
+</g>
+<g class="func_g" onmouseover="s(this)" onmouseout="c()" onclick="zoom(this)">
+<title>ngx_alloc_chain_link (1 samples, 0.05%)</title><rect x="1070.0" y="85" width="0.6" height="15.0" fill="rgb(222,201,24)" rx="2" ry="2" />
+<text text-anchor="" x="1072.96" y="95.5" font-size="12" font-family="Verdana" fill="rgb(0,0,0)"  ></text>
+</g>
+<g class="func_g" onmouseover="s(this)" onmouseout="c()" onclick="zoom(this)">
+<title>_init (1 samples, 0.05%)</title><rect x="1116.2" y="325" width="0.6" height="15.0" fill="rgb(213,45,50)" rx="2" ry="2" />
+<text text-anchor="" x="1119.17" y="335.5" font-size="12" font-family="Verdana" fill="rgb(0,0,0)"  ></text>
+</g>
+<g class="func_g" onmouseover="s(this)" onmouseout="c()" onclick="zoom(this)">
+<title>ngx_http_wait_request_handler (1,581 samples, 80.42%)</title><rect x="234.5" y="405" width="948.9" height="15.0" fill="rgb(218,71,17)" rx="2" ry="2" />
+<text text-anchor="" x="237.48" y="415.5" font-size="12" font-family="Verdana" fill="rgb(0,0,0)"  >ngx_http_wait_request_handler</text>
+</g>
+<g class="func_g" onmouseover="s(this)" onmouseout="c()" onclick="zoom(this)">
+<title>ngx_http_core_find_static_location (10 samples, 0.51%)</title><rect x="1077.2" y="277" width="6.0" height="15.0" fill="rgb(243,163,43)" rx="2" ry="2" />
+<text text-anchor="" x="1080.16" y="287.5" font-size="12" font-family="Verdana" fill="rgb(0,0,0)"  ></text>
+</g>
+<g class="func_g" onmouseover="s(this)" onmouseout="c()" onclick="zoom(this)">
+<title>__libc_malloc (9 samples, 0.46%)</title><rect x="248.9" y="325" width="5.4" height="15.0" fill="rgb(214,19,9)" rx="2" ry="2" />
+<text text-anchor="" x="251.88" y="335.5" font-size="12" font-family="Verdana" fill="rgb(0,0,0)"  ></text>
+</g>
+<g class="func_g" onmouseover="s(this)" onmouseout="c()" onclick="zoom(this)">
+<title>ngx_http_variable_header (1 samples, 0.05%)</title><rect x="595.8" y="165" width="0.6" height="15.0" fill="rgb(206,179,24)" rx="2" ry="2" />
+<text text-anchor="" x="598.80" y="175.5" font-size="12" font-family="Verdana" fill="rgb(0,0,0)"  ></text>
+</g>
+<g class="func_g" onmouseover="s(this)" onmouseout="c()" onclick="zoom(this)">
+<title>ngx_http_variable_request_line (2 samples, 0.10%)</title><rect x="598.2" y="165" width="1.2" height="15.0" fill="rgb(250,172,0)" rx="2" ry="2" />
+<text text-anchor="" x="601.20" y="175.5" font-size="12" font-family="Verdana" fill="rgb(0,0,0)"  ></text>
+</g>
+<g class="func_g" onmouseover="s(this)" onmouseout="c()" onclick="zoom(this)">
+<title>_init (1 samples, 0.05%)</title><rect x="588.0" y="181" width="0.6" height="15.0" fill="rgb(241,204,16)" rx="2" ry="2" />
+<text text-anchor="" x="591.00" y="191.5" font-size="12" font-family="Verdana" fill="rgb(0,0,0)"  ></text>
+</g>
+<g class="func_g" onmouseover="s(this)" onmouseout="c()" onclick="zoom(this)">
+<title>__libc_enable_asynccancel (4 samples, 0.20%)</title><rect x="74.2" y="389" width="2.4" height="15.0" fill="rgb(250,82,53)" rx="2" ry="2" />
+<text text-anchor="" x="77.22" y="399.5" font-size="12" font-family="Verdana" fill="rgb(0,0,0)"  ></text>
+</g>
+<g class="func_g" onmouseover="s(this)" onmouseout="c()" onclick="zoom(this)">
+<title>ngx_http_core_rewrite_phase (14 samples, 0.71%)</title><rect x="1091.6" y="309" width="8.4" height="15.0" fill="rgb(240,30,25)" rx="2" ry="2" />
+<text text-anchor="" x="1094.57" y="319.5" font-size="12" font-family="Verdana" fill="rgb(0,0,0)"  ></text>
+</g>
+<g class="func_g" onmouseover="s(this)" onmouseout="c()" onclick="zoom(this)">
+<title>ngx_destroy_pool (6 samples, 0.31%)</title><rect x="552.0" y="229" width="3.6" height="15.0" fill="rgb(244,182,24)" rx="2" ry="2" />
+<text text-anchor="" x="554.98" y="239.5" font-size="12" font-family="Verdana" fill="rgb(0,0,0)"  ></text>
+</g>
+<g class="func_g" onmouseover="s(this)" onmouseout="c()" onclick="zoom(this)">
+<title>clock_gettime (1 samples, 0.05%)</title><rect x="1187.6" y="373" width="0.6" height="15.0" fill="rgb(238,115,39)" rx="2" ry="2" />
+<text text-anchor="" x="1190.60" y="383.5" font-size="12" font-family="Verdana" fill="rgb(0,0,0)"  ></text>
+</g>
+<g class="func_g" onmouseover="s(this)" onmouseout="c()" onclick="zoom(this)">
+<title>ngx_http_core_run_phases (1,323 samples, 67.29%)</title><rect x="305.9" y="325" width="794.1" height="15.0" fill="rgb(235,64,10)" rx="2" ry="2" />
+<text text-anchor="" x="308.90" y="335.5" font-size="12" font-family="Verdana" fill="rgb(0,0,0)"  >ngx_http_core_run_phases</text>
+</g>
+<g class="func_g" onmouseover="s(this)" onmouseout="c()" onclick="zoom(this)">
+<title>__memcpy_avx_unaligned_erms (6 samples, 0.31%)</title><rect x="1062.8" y="101" width="3.6" height="15.0" fill="rgb(239,104,10)" rx="2" ry="2" />
+<text text-anchor="" x="1065.76" y="111.5" font-size="12" font-family="Verdana" fill="rgb(0,0,0)"  ></text>
+</g>
+<g class="func_g" onmouseover="s(this)" onmouseout="c()" onclick="zoom(this)">
+<title>ngx_http_core_post_access_phase (2 samples, 0.10%)</title><rect x="1090.4" y="309" width="1.2" height="15.0" fill="rgb(205,167,32)" rx="2" ry="2" />
+<text text-anchor="" x="1093.37" y="319.5" font-size="12" font-family="Verdana" fill="rgb(0,0,0)"  ></text>
+</g>
+<g class="func_g" onmouseover="s(this)" onmouseout="c()" onclick="zoom(this)">
+<title>ngx_http_set_virtual_server (1 samples, 0.05%)</title><rect x="297.5" y="341" width="0.6" height="15.0" fill="rgb(221,5,10)" rx="2" ry="2" />
+<text text-anchor="" x="300.50" y="351.5" font-size="12" font-family="Verdana" fill="rgb(0,0,0)"  ></text>
+</g>
+<g class="func_g" onmouseover="s(this)" onmouseout="c()" onclick="zoom(this)">
+<title>ngx_snprintf (13 samples, 0.66%)</title><rect x="226.7" y="373" width="7.8" height="15.0" fill="rgb(229,99,49)" rx="2" ry="2" />
+<text text-anchor="" x="229.67" y="383.5" font-size="12" font-family="Verdana" fill="rgb(0,0,0)"  ></text>
+</g>
+<g class="func_g" onmouseover="s(this)" onmouseout="c()" onclick="zoom(this)">
+<title>ngx_http_ndg_debug_handler (2 samples, 0.10%)</title><rect x="317.9" y="293" width="1.2" height="15.0" fill="rgb(228,20,28)" rx="2" ry="2" />
+<text text-anchor="" x="320.90" y="303.5" font-size="12" font-family="Verdana" fill="rgb(0,0,0)"  ></text>
+</g>
+<g class="func_g" onmouseover="s(this)" onmouseout="c()" onclick="zoom(this)">
+<title>__memmove_avx_unaligned (2 samples, 0.10%)</title><rect x="586.8" y="181" width="1.2" height="15.0" fill="rgb(247,158,4)" rx="2" ry="2" />
+<text text-anchor="" x="589.80" y="191.5" font-size="12" font-family="Verdana" fill="rgb(0,0,0)"  ></text>
+</g>
+<g class="func_g" onmouseover="s(this)" onmouseout="c()" onclick="zoom(this)">
+<title>__libc_enable_asynccancel (1 samples, 0.05%)</title><rect x="1044.8" y="37" width="0.6" height="15.0" fill="rgb(250,185,41)" rx="2" ry="2" />
+<text text-anchor="" x="1047.75" y="47.5" font-size="12" font-family="Verdana" fill="rgb(0,0,0)"  ></text>
+</g>
+<g class="func_g" onmouseover="s(this)" onmouseout="c()" onclick="zoom(this)">
+<title>ngx_http_header_filter (22 samples, 1.12%)</title><rect x="1060.4" y="117" width="13.2" height="15.0" fill="rgb(253,208,33)" rx="2" ry="2" />
+<text text-anchor="" x="1063.36" y="127.5" font-size="12" font-family="Verdana" fill="rgb(0,0,0)"  ></text>
+</g>
+<g class="func_g" onmouseover="s(this)" onmouseout="c()" onclick="zoom(this)">
+<title>ngx_time_update (8 samples, 0.41%)</title><rect x="1183.4" y="405" width="4.8" height="15.0" fill="rgb(222,191,46)" rx="2" ry="2" />
+<text text-anchor="" x="1186.40" y="415.5" font-size="12" font-family="Verdana" fill="rgb(0,0,0)"  ></text>
+</g>
+<g class="func_g" onmouseover="s(this)" onmouseout="c()" onclick="zoom(this)">
+<title>ngx_http_log_body_bytes_sent (5 samples, 0.25%)</title><rect x="566.4" y="197" width="3.0" height="15.0" fill="rgb(249,95,17)" rx="2" ry="2" />
+<text text-anchor="" x="569.39" y="207.5" font-size="12" font-family="Verdana" fill="rgb(0,0,0)"  ></text>
+</g>
+<g class="func_g" onmouseover="s(this)" onmouseout="c()" onclick="zoom(this)">
+<title>ngx_http_parse_header_line (30 samples, 1.53%)</title><rect x="278.9" y="357" width="18.0" height="15.0" fill="rgb(240,206,54)" rx="2" ry="2" />
+<text text-anchor="" x="281.89" y="367.5" font-size="12" font-family="Verdana" fill="rgb(0,0,0)"  ></text>
+</g>
+<g class="func_g" onmouseover="s(this)" onmouseout="c()" onclick="zoom(this)">
+<title>ngx_http_not_modified_header_filter (50 samples, 2.54%)</title><rect x="1046.6" y="261" width="30.0" height="15.0" fill="rgb(233,49,37)" rx="2" ry="2" />
+<text text-anchor="" x="1049.55" y="271.5" font-size="12" font-family="Verdana" fill="rgb(0,0,0)"  >ng..</text>
+</g>
+<g class="func_g" onmouseover="s(this)" onmouseout="c()" onclick="zoom(this)">
+<title>__restore_rt (12 samples, 0.61%)</title><rect x="13.6" y="501" width="7.2" height="15.0" fill="rgb(221,75,14)" rx="2" ry="2" />
+<text text-anchor="" x="16.60" y="511.5" font-size="12" font-family="Verdana" fill="rgb(0,0,0)"  ></text>
+</g>
+<g class="func_g" onmouseover="s(this)" onmouseout="c()" onclick="zoom(this)">
+<title>__pthread_disable_asynccancel (1 samples, 0.05%)</title><rect x="1181.6" y="357" width="0.6" height="15.0" fill="rgb(209,206,23)" rx="2" ry="2" />
+<text text-anchor="" x="1184.60" y="367.5" font-size="12" font-family="Verdana" fill="rgb(0,0,0)"  ></text>
+</g>
+<g class="func_g" onmouseover="s(this)" onmouseout="c()" onclick="zoom(this)">
+<title>__memmove_avx_unaligned (1 samples, 0.05%)</title><rect x="233.9" y="325" width="0.6" height="15.0" fill="rgb(249,8,9)" rx="2" ry="2" />
+<text text-anchor="" x="236.88" y="335.5" font-size="12" font-family="Verdana" fill="rgb(0,0,0)"  ></text>
+</g>
+<g class="func_g" onmouseover="s(this)" onmouseout="c()" onclick="zoom(this)">
+<title>ngx_memalign (5 samples, 0.25%)</title><rect x="168.5" y="373" width="3.0" height="15.0" fill="rgb(208,138,30)" rx="2" ry="2" />
+<text text-anchor="" x="171.45" y="383.5" font-size="12" font-family="Verdana" fill="rgb(0,0,0)"  ></text>
+</g>
+<g class="func_g" onmouseover="s(this)" onmouseout="c()" onclick="zoom(this)">
+<title>ngx_http_init_connection (82 samples, 4.17%)</title><rect x="175.7" y="389" width="49.2" height="15.0" fill="rgb(236,100,14)" rx="2" ry="2" />
+<text text-anchor="" x="178.66" y="399.5" font-size="12" font-family="Verdana" fill="rgb(0,0,0)"  >ngx_..</text>
+</g>
+<g class="func_g" onmouseover="s(this)" onmouseout="c()" onclick="zoom(this)">
+<title>ngx_palloc (3 samples, 0.15%)</title><rect x="240.5" y="373" width="1.8" height="15.0" fill="rgb(230,199,2)" rx="2" ry="2" />
+<text text-anchor="" x="243.48" y="383.5" font-size="12" font-family="Verdana" fill="rgb(0,0,0)"  ></text>
+</g>
+<g class="func_g" onmouseover="s(this)" onmouseout="c()" onclick="zoom(this)">
+<title>ngx_http_get_indexed_variable (3 samples, 0.15%)</title><rect x="588.6" y="181" width="1.8" height="15.0" fill="rgb(249,87,46)" rx="2" ry="2" />
+<text text-anchor="" x="591.60" y="191.5" font-size="12" font-family="Verdana" fill="rgb(0,0,0)"  ></text>
+</g>
+<g class="func_g" onmouseover="s(this)" onmouseout="c()" onclick="zoom(this)">
+<title>ngx_output_chain_as_is (1 samples, 0.05%)</title><rect x="1045.4" y="213" width="0.6" height="15.0" fill="rgb(250,191,13)" rx="2" ry="2" />
+<text text-anchor="" x="1048.35" y="223.5" font-size="12" font-family="Verdana" fill="rgb(0,0,0)"  ></text>
+</g>
+<g class="func_g" onmouseover="s(this)" onmouseout="c()" onclick="zoom(this)">
+<title>ngx_writev (460 samples, 23.40%)</title><rect x="769.3" y="69" width="276.1" height="15.0" fill="rgb(233,139,0)" rx="2" ry="2" />
+<text text-anchor="" x="772.26" y="79.5" font-size="12" font-family="Verdana" fill="rgb(0,0,0)"  >ngx_writev</text>
+</g>
+<g class="func_g" onmouseover="s(this)" onmouseout="c()" onclick="zoom(this)">
+<title>ngx_http_chunked_header_filter (23 samples, 1.17%)</title><rect x="1059.8" y="133" width="13.8" height="15.0" fill="rgb(228,28,14)" rx="2" ry="2" />
+<text text-anchor="" x="1062.76" y="143.5" font-size="12" font-family="Verdana" fill="rgb(0,0,0)"  ></text>
+</g>
+<g class="func_g" onmouseover="s(this)" onmouseout="c()" onclick="zoom(this)">
+<title>ngx_monotonic_time (2 samples, 0.10%)</title><rect x="1187.0" y="389" width="1.2" height="15.0" fill="rgb(207,223,42)" rx="2" ry="2" />
+<text text-anchor="" x="1190.00" y="399.5" font-size="12" font-family="Verdana" fill="rgb(0,0,0)"  ></text>
+</g>
+<g class="func_g" onmouseover="s(this)" onmouseout="c()" onclick="zoom(this)">
+<title>_Z24GetStackTraceWithContextPPviiPKv (11 samples, 0.56%)</title><rect x="14.2" y="453" width="6.6" height="15.0" fill="rgb(252,173,51)" rx="2" ry="2" />
+<text text-anchor="" x="17.20" y="463.5" font-size="12" font-family="Verdana" fill="rgb(0,0,0)"  ></text>
+</g>
+<g class="func_g" onmouseover="s(this)" onmouseout="c()" onclick="zoom(this)">
+<title>ngx_unix_recv (91 samples, 4.63%)</title><rect x="1128.8" y="389" width="54.6" height="15.0" fill="rgb(232,224,43)" rx="2" ry="2" />
+<text text-anchor="" x="1131.78" y="399.5" font-size="12" font-family="Verdana" fill="rgb(0,0,0)"  >ngx_u..</text>
+</g>
+<g class="func_g" onmouseover="s(this)" onmouseout="c()" onclick="zoom(this)">
+<title>ngx_http_postpone_filter (493 samples, 25.08%)</title><rect x="749.5" y="149" width="295.9" height="15.0" fill="rgb(241,125,1)" rx="2" ry="2" />
+<text text-anchor="" x="752.45" y="159.5" font-size="12" font-family="Verdana" fill="rgb(0,0,0)"  >ngx_http_postpone_filter</text>
+</g>
+<g class="func_g" onmouseover="s(this)" onmouseout="c()" onclick="zoom(this)">
+<title>ngx_http_log_escape (10 samples, 0.51%)</title><rect x="599.4" y="181" width="6.0" height="15.0" fill="rgb(250,83,47)" rx="2" ry="2" />
+<text text-anchor="" x="602.40" y="191.5" font-size="12" font-family="Verdana" fill="rgb(0,0,0)"  ></text>
+</g>
+<g class="func_g" onmouseover="s(this)" onmouseout="c()" onclick="zoom(this)">
+<title>ngx_palloc_small (1 samples, 0.05%)</title><rect x="256.7" y="341" width="0.6" height="15.0" fill="rgb(209,180,7)" rx="2" ry="2" />
+<text text-anchor="" x="259.68" y="351.5" font-size="12" font-family="Verdana" fill="rgb(0,0,0)"  ></text>
+</g>
+<g class="func_g" onmouseover="s(this)" onmouseout="c()" onclick="zoom(this)">
+<title>__memset_avx2_unaligned (4 samples, 0.20%)</title><rect x="242.3" y="357" width="2.4" height="15.0" fill="rgb(215,197,44)" rx="2" ry="2" />
+<text text-anchor="" x="245.28" y="367.5" font-size="12" font-family="Verdana" fill="rgb(0,0,0)"  ></text>
+</g>
+<g class="func_g" onmouseover="s(this)" onmouseout="c()" onclick="zoom(this)">
+<title>ngx_create_pool (10 samples, 0.51%)</title><rect x="248.3" y="373" width="6.0" height="15.0" fill="rgb(248,207,5)" rx="2" ry="2" />
+<text text-anchor="" x="251.28" y="383.5" font-size="12" font-family="Verdana" fill="rgb(0,0,0)"  ></text>
+</g>
+<g class="func_g" onmouseover="s(this)" onmouseout="c()" onclick="zoom(this)">
+<title>ngx_hash_find (8 samples, 0.41%)</title><rect x="274.1" y="357" width="4.8" height="15.0" fill="rgb(233,209,52)" rx="2" ry="2" />
+<text text-anchor="" x="277.09" y="367.5" font-size="12" font-family="Verdana" fill="rgb(0,0,0)"  ></text>
+</g>
+<g class="func_g" onmouseover="s(this)" onmouseout="c()" onclick="zoom(this)">
+<title>__memcpy_avx_unaligned_erms (2 samples, 0.10%)</title><rect x="272.9" y="357" width="1.2" height="15.0" fill="rgb(222,165,43)" rx="2" ry="2" />
+<text text-anchor="" x="275.89" y="367.5" font-size="12" font-family="Verdana" fill="rgb(0,0,0)"  ></text>
+</g>
+<g class="func_g" onmouseover="s(this)" onmouseout="c()" onclick="zoom(this)">
+<title>_init (11 samples, 0.56%)</title><rect x="14.2" y="469" width="6.6" height="15.0" fill="rgb(213,39,13)" rx="2" ry="2" />
+<text text-anchor="" x="17.20" y="479.5" font-size="12" font-family="Verdana" fill="rgb(0,0,0)"  ></text>
+</g>
+<g class="func_g" onmouseover="s(this)" onmouseout="c()" onclick="zoom(this)">
+<title>ngx_http_validate_host (5 samples, 0.25%)</title><rect x="298.1" y="341" width="3.0" height="15.0" fill="rgb(217,12,40)" rx="2" ry="2" />
+<text text-anchor="" x="301.10" y="351.5" font-size="12" font-family="Verdana" fill="rgb(0,0,0)"  ></text>
+</g>
+<g class="func_g" onmouseover="s(this)" onmouseout="c()" onclick="zoom(this)">
+<title>__memset_avx2_unaligned (7 samples, 0.36%)</title><rect x="171.5" y="373" width="4.2" height="15.0" fill="rgb(235,4,42)" rx="2" ry="2" />
+<text text-anchor="" x="174.45" y="383.5" font-size="12" font-family="Verdana" fill="rgb(0,0,0)"  ></text>
+</g>
+<g class="func_g" onmouseover="s(this)" onmouseout="c()" onclick="zoom(this)">
+<title>0x7ffd9d163a86 (1 samples, 0.05%)</title><rect x="11.8" y="501" width="0.6" height="15.0" fill="rgb(237,145,53)" rx="2" ry="2" />
+<text text-anchor="" x="14.80" y="511.5" font-size="12" font-family="Verdana" fill="rgb(0,0,0)"  ></text>
+</g>
+<g class="func_g" onmouseover="s(this)" onmouseout="c()" onclick="zoom(this)">
+<title>ngx_rbtree_delete (2 samples, 0.10%)</title><rect x="303.5" y="325" width="1.2" height="15.0" fill="rgb(240,168,32)" rx="2" ry="2" />
+<text text-anchor="" x="306.50" y="335.5" font-size="12" font-family="Verdana" fill="rgb(0,0,0)"  ></text>
+</g>
+<g class="func_g" onmouseover="s(this)" onmouseout="c()" onclick="zoom(this)">
+<title>0x7ffd9d163d40 (1 samples, 0.05%)</title><rect x="12.4" y="501" width="0.6" height="15.0" fill="rgb(209,208,47)" rx="2" ry="2" />
+<text text-anchor="" x="15.40" y="511.5" font-size="12" font-family="Verdana" fill="rgb(0,0,0)"  ></text>
+</g>
+<g class="func_g" onmouseover="s(this)" onmouseout="c()" onclick="zoom(this)">
+<title>ngx_palloc (1 samples, 0.05%)</title><rect x="256.7" y="357" width="0.6" height="15.0" fill="rgb(238,194,22)" rx="2" ry="2" />
+<text text-anchor="" x="259.68" y="367.5" font-size="12" font-family="Verdana" fill="rgb(0,0,0)"  ></text>
+</g>
+<g class="func_g" onmouseover="s(this)" onmouseout="c()" onclick="zoom(this)">
+<title>__memmove_avx_unaligned (1 samples, 0.05%)</title><rect x="82.0" y="389" width="0.6" height="15.0" fill="rgb(225,169,34)" rx="2" ry="2" />
+<text text-anchor="" x="85.02" y="399.5" font-size="12" font-family="Verdana" fill="rgb(0,0,0)"  ></text>
+</g>
+<g class="func_g" onmouseover="s(this)" onmouseout="c()" onclick="zoom(this)">
+<title>ngx_pcalloc (4 samples, 0.20%)</title><rect x="221.3" y="373" width="2.4" height="15.0" fill="rgb(205,14,24)" rx="2" ry="2" />
+<text text-anchor="" x="224.27" y="383.5" font-size="12" font-family="Verdana" fill="rgb(0,0,0)"  ></text>
+</g>
+<g class="func_g" onmouseover="s(this)" onmouseout="c()" onclick="zoom(this)">
+<title>ngx_event_process_posted (2 samples, 0.10%)</title><rect x="1188.8" y="421" width="1.2" height="15.0" fill="rgb(240,212,53)" rx="2" ry="2" />
+<text text-anchor="" x="1191.80" y="431.5" font-size="12" font-family="Verdana" fill="rgb(0,0,0)"  ></text>
+</g>
+<g class="func_g" onmouseover="s(this)" onmouseout="c()" onclick="zoom(this)">
+<title>ngx_palloc (1 samples, 0.05%)</title><rect x="1067.6" y="85" width="0.6" height="15.0" fill="rgb(223,34,28)" rx="2" ry="2" />
+<text text-anchor="" x="1070.56" y="95.5" font-size="12" font-family="Verdana" fill="rgb(0,0,0)"  ></text>
+</g>
+<g class="func_g" onmouseover="s(this)" onmouseout="c()" onclick="zoom(this)">
+<title>ngx_palloc_small (1 samples, 0.05%)</title><rect x="223.1" y="341" width="0.6" height="15.0" fill="rgb(206,19,3)" rx="2" ry="2" />
+<text text-anchor="" x="226.07" y="351.5" font-size="12" font-family="Verdana" fill="rgb(0,0,0)"  ></text>
+</g>
+<g class="func_g" onmouseover="s(this)" onmouseout="c()" onclick="zoom(this)">
+<title>epoll_ctl (57 samples, 2.90%)</title><rect x="186.5" y="341" width="34.2" height="15.0" fill="rgb(253,8,26)" rx="2" ry="2" />
+<text text-anchor="" x="189.46" y="351.5" font-size="12" font-family="Verdana" fill="rgb(0,0,0)"  >ep..</text>
+</g>
+<g class="func_g" onmouseover="s(this)" onmouseout="c()" onclick="zoom(this)">
+<title>ngx_alloc_chain_link (2 samples, 0.10%)</title><rect x="730.2" y="277" width="1.2" height="15.0" fill="rgb(242,12,29)" rx="2" ry="2" />
+<text text-anchor="" x="733.24" y="287.5" font-size="12" font-family="Verdana" fill="rgb(0,0,0)"  ></text>
+</g>
+<g class="func_g" onmouseover="s(this)" onmouseout="c()" onclick="zoom(this)">
+<title>ngx_http_process_host (7 samples, 0.36%)</title><rect x="296.9" y="357" width="4.2" height="15.0" fill="rgb(214,73,52)" rx="2" ry="2" />
+<text text-anchor="" x="299.90" y="367.5" font-size="12" font-family="Verdana" fill="rgb(0,0,0)"  ></text>
+</g>
+<g class="func_g" onmouseover="s(this)" onmouseout="c()" onclick="zoom(this)">
+<title>_ZN14ProfileHandler13SignalHandlerEiP9siginfo_tPv (12 samples, 0.61%)</title><rect x="13.6" y="485" width="7.2" height="15.0" fill="rgb(219,209,21)" rx="2" ry="2" />
+<text text-anchor="" x="16.60" y="495.5" font-size="12" font-family="Verdana" fill="rgb(0,0,0)"  ></text>
+</g>
+<g class="func_g" onmouseover="s(this)" onmouseout="c()" onclick="zoom(this)">
+<title>ngx_http_post_action (1 samples, 0.05%)</title><rect x="728.4" y="277" width="0.6" height="15.0" fill="rgb(216,78,15)" rx="2" ry="2" />
+<text text-anchor="" x="731.44" y="287.5" font-size="12" font-family="Verdana" fill="rgb(0,0,0)"  ></text>
+</g>
+<g class="func_g" onmouseover="s(this)" onmouseout="c()" onclick="zoom(this)">
+<title>__memset_avx2_unaligned (4 samples, 0.20%)</title><rect x="1073.6" y="213" width="2.4" height="15.0" fill="rgb(237,131,41)" rx="2" ry="2" />
+<text text-anchor="" x="1076.56" y="223.5" font-size="12" font-family="Verdana" fill="rgb(0,0,0)"  ></text>
+</g>
+<g class="func_g" onmouseover="s(this)" onmouseout="c()" onclick="zoom(this)">
+<title>ngx_list_init (10 samples, 0.51%)</title><rect x="1122.8" y="373" width="6.0" height="15.0" fill="rgb(240,165,22)" rx="2" ry="2" />
+<text text-anchor="" x="1125.78" y="383.5" font-size="12" font-family="Verdana" fill="rgb(0,0,0)"  ></text>
+</g>
+<g class="func_g" onmouseover="s(this)" onmouseout="c()" onclick="zoom(this)">
+<title>dl_iterate_phdr (1 samples, 0.05%)</title><rect x="15.4" y="341" width="0.6" height="15.0" fill="rgb(213,65,50)" rx="2" ry="2" />
+<text text-anchor="" x="18.40" y="351.5" font-size="12" font-family="Verdana" fill="rgb(0,0,0)"  ></text>
+</g>
+<g class="func_g" onmouseover="s(this)" onmouseout="c()" onclick="zoom(this)">
+<title>ngx_strstrn (24 samples, 1.22%)</title><rect x="1102.4" y="341" width="14.4" height="15.0" fill="rgb(226,204,48)" rx="2" ry="2" />
+<text text-anchor="" x="1105.37" y="351.5" font-size="12" font-family="Verdana" fill="rgb(0,0,0)"  ></text>
+</g>
+<g class="func_g" onmouseover="s(this)" onmouseout="c()" onclick="zoom(this)">
+<title>ngx_http_ndg_advance_handler (3 samples, 0.15%)</title><rect x="1093.4" y="293" width="1.8" height="15.0" fill="rgb(221,143,21)" rx="2" ry="2" />
+<text text-anchor="" x="1096.37" y="303.5" font-size="12" font-family="Verdana" fill="rgb(0,0,0)"  ></text>
+</g>
+<g class="func_g" onmouseover="s(this)" onmouseout="c()" onclick="zoom(this)">
+<title>ngx_http_ndg_hello_handler (1 samples, 0.05%)</title><rect x="1095.2" y="293" width="0.6" height="15.0" fill="rgb(230,12,28)" rx="2" ry="2" />
+<text text-anchor="" x="1098.17" y="303.5" font-size="12" font-family="Verdana" fill="rgb(0,0,0)"  ></text>
+</g>
+<g class="func_g" onmouseover="s(this)" onmouseout="c()" onclick="zoom(this)">
+<title>0x7ffd9d1639c1 (1 samples, 0.05%)</title><rect x="11.2" y="501" width="0.6" height="15.0" fill="rgb(249,191,53)" rx="2" ry="2" />
+<text text-anchor="" x="14.20" y="511.5" font-size="12" font-family="Verdana" fill="rgb(0,0,0)"  ></text>
+</g>
+<g class="func_g" onmouseover="s(this)" onmouseout="c()" onclick="zoom(this)">
+<title>ngx_http_get_indexed_variable (10 samples, 0.51%)</title><rect x="593.4" y="181" width="6.0" height="15.0" fill="rgb(247,103,10)" rx="2" ry="2" />
+<text text-anchor="" x="596.40" y="191.5" font-size="12" font-family="Verdana" fill="rgb(0,0,0)"  ></text>
+</g>
+<g class="func_g" onmouseover="s(this)" onmouseout="c()" onclick="zoom(this)">
+<title>_int_malloc (1 samples, 0.05%)</title><rect x="1128.2" y="261" width="0.6" height="15.0" fill="rgb(228,172,25)" rx="2" ry="2" />
+<text text-anchor="" x="1131.18" y="271.5" font-size="12" font-family="Verdana" fill="rgb(0,0,0)"  ></text>
+</g>
+<g class="func_g" onmouseover="s(this)" onmouseout="c()" onclick="zoom(this)">
+<title>__memset_avx2_unaligned_erms (1 samples, 0.05%)</title><rect x="244.7" y="357" width="0.6" height="15.0" fill="rgb(223,108,28)" rx="2" ry="2" />
+<text text-anchor="" x="247.68" y="367.5" font-size="12" font-family="Verdana" fill="rgb(0,0,0)"  ></text>
+</g>
+<g class="func_g" onmouseover="s(this)" onmouseout="c()" onclick="zoom(this)">
+<title>ngx_http_parse_request_line (18 samples, 0.92%)</title><rect x="257.9" y="373" width="10.8" height="15.0" fill="rgb(248,100,30)" rx="2" ry="2" />
+<text text-anchor="" x="260.88" y="383.5" font-size="12" font-family="Verdana" fill="rgb(0,0,0)"  ></text>
+</g>
+<g class="func_g" onmouseover="s(this)" onmouseout="c()" onclick="zoom(this)">
+<title>ngx_http_run_posted_requests (1 samples, 0.05%)</title><rect x="1116.8" y="357" width="0.6" height="15.0" fill="rgb(213,3,13)" rx="2" ry="2" />
+<text text-anchor="" x="1119.78" y="367.5" font-size="12" font-family="Verdana" fill="rgb(0,0,0)"  ></text>
+</g>
+<g class="func_g" onmouseover="s(this)" onmouseout="c()" onclick="zoom(this)">
+<title>ngx_http_process_request_headers (1,416 samples, 72.02%)</title><rect x="268.7" y="373" width="849.9" height="15.0" fill="rgb(213,89,52)" rx="2" ry="2" />
+<text text-anchor="" x="271.69" y="383.5" font-size="12" font-family="Verdana" fill="rgb(0,0,0)"  >ngx_http_process_request_headers</text>
+</g>
+<g class="func_g" onmouseover="s(this)" onmouseout="c()" onclick="zoom(this)">
+<title>ngx_http_log_copy_short (6 samples, 0.31%)</title><rect x="569.4" y="197" width="3.6" height="15.0" fill="rgb(211,133,11)" rx="2" ry="2" />
+<text text-anchor="" x="572.39" y="207.5" font-size="12" font-family="Verdana" fill="rgb(0,0,0)"  ></text>
+</g>
+<g class="func_g" onmouseover="s(this)" onmouseout="c()" onclick="zoom(this)">
+<title>write (197 samples, 10.02%)</title><rect x="606.6" y="165" width="118.2" height="15.0" fill="rgb(252,113,49)" rx="2" ry="2" />
+<text text-anchor="" x="609.60" y="175.5" font-size="12" font-family="Verdana" fill="rgb(0,0,0)"  >write</text>
+</g>
+<g class="func_g" onmouseover="s(this)" onmouseout="c()" onclick="zoom(this)">
+<title>ngx_epoll_add_event (62 samples, 3.15%)</title><rect x="183.5" y="357" width="37.2" height="15.0" fill="rgb(235,161,11)" rx="2" ry="2" />
+<text text-anchor="" x="186.46" y="367.5" font-size="12" font-family="Verdana" fill="rgb(0,0,0)"  >ngx..</text>
+</g>
+<g class="func_g" onmouseover="s(this)" onmouseout="c()" onclick="zoom(this)">
+<title>__libc_malloc (3 samples, 0.15%)</title><rect x="1127.0" y="277" width="1.8" height="15.0" fill="rgb(254,59,44)" rx="2" ry="2" />
+<text text-anchor="" x="1129.98" y="287.5" font-size="12" font-family="Verdana" fill="rgb(0,0,0)"  ></text>
+</g>
+<g class="func_g" onmouseover="s(this)" onmouseout="c()" onclick="zoom(this)">
+<title>ngx_rbtree_min (1 samples, 0.05%)</title><rect x="1188.2" y="405" width="0.6" height="15.0" fill="rgb(250,167,46)" rx="2" ry="2" />
+<text text-anchor="" x="1191.20" y="415.5" font-size="12" font-family="Verdana" fill="rgb(0,0,0)"  ></text>
+</g>
+<g class="func_g" onmouseover="s(this)" onmouseout="c()" onclick="zoom(this)">
+<title>__memcpy_avx_unaligned_erms (3 samples, 0.15%)</title><rect x="585.0" y="181" width="1.8" height="15.0" fill="rgb(229,78,4)" rx="2" ry="2" />
+<text text-anchor="" x="587.99" y="191.5" font-size="12" font-family="Verdana" fill="rgb(0,0,0)"  ></text>
+</g>
+<g class="func_g" onmouseover="s(this)" onmouseout="c()" onclick="zoom(this)">
+<title>ngx_palloc (2 samples, 0.10%)</title><rect x="222.5" y="357" width="1.2" height="15.0" fill="rgb(231,121,48)" rx="2" ry="2" />
+<text text-anchor="" x="225.47" y="367.5" font-size="12" font-family="Verdana" fill="rgb(0,0,0)"  ></text>
+</g>
+<g class="func_g" onmouseover="s(this)" onmouseout="c()" onclick="zoom(this)">
+<title>posix_memalign (3 samples, 0.15%)</title><rect x="169.7" y="357" width="1.8" height="15.0" fill="rgb(206,59,10)" rx="2" ry="2" />
+<text text-anchor="" x="172.65" y="367.5" font-size="12" font-family="Verdana" fill="rgb(0,0,0)"  ></text>
+</g>
+<g class="func_g" onmouseover="s(this)" onmouseout="c()" onclick="zoom(this)">
+<title>ngx_output_chain (508 samples, 25.84%)</title><rect x="741.0" y="229" width="305.0" height="15.0" fill="rgb(243,12,13)" rx="2" ry="2" />
+<text text-anchor="" x="744.05" y="239.5" font-size="12" font-family="Verdana" fill="rgb(0,0,0)"  >ngx_output_chain</text>
+</g>
+<g class="func_g" onmouseover="s(this)" onmouseout="c()" onclick="zoom(this)">
+<title>_ZN11ProfileData10FlushTableEv (11 samples, 0.56%)</title><rect x="14.2" y="437" width="6.6" height="15.0" fill="rgb(230,148,34)" rx="2" ry="2" />
+<text text-anchor="" x="17.20" y="447.5" font-size="12" font-family="Verdana" fill="rgb(0,0,0)"  ></text>
+</g>
+<g class="func_g" onmouseover="s(this)" onmouseout="c()" onclick="zoom(this)">
+<title>0x7ffd9d1639bf (1 samples, 0.05%)</title><rect x="10.6" y="501" width="0.6" height="15.0" fill="rgb(242,227,20)" rx="2" ry="2" />
+<text text-anchor="" x="13.60" y="511.5" font-size="12" font-family="Verdana" fill="rgb(0,0,0)"  ></text>
+</g>
+<g class="func_g" onmouseover="s(this)" onmouseout="c()" onclick="zoom(this)">
+<title>ngx_palloc_small (9 samples, 0.46%)</title><rect x="1123.4" y="341" width="5.4" height="15.0" fill="rgb(209,188,52)" rx="2" ry="2" />
+<text text-anchor="" x="1126.38" y="351.5" font-size="12" font-family="Verdana" fill="rgb(0,0,0)"  ></text>
+</g>
+<g class="func_g" onmouseover="s(this)" onmouseout="c()" onclick="zoom(this)">
+<title>cfree@GLIBC_2.2.5 (6 samples, 0.31%)</title><rect x="552.0" y="213" width="3.6" height="15.0" fill="rgb(243,6,6)" rx="2" ry="2" />
+<text text-anchor="" x="554.98" y="223.5" font-size="12" font-family="Verdana" fill="rgb(0,0,0)"  ></text>
+</g>
+<g class="func_g" onmouseover="s(this)" onmouseout="c()" onclick="zoom(this)">
+<title>__memset_avx2_unaligned_erms (3 samples, 0.15%)</title><rect x="254.9" y="357" width="1.8" height="15.0" fill="rgb(210,25,17)" rx="2" ry="2" />
+<text text-anchor="" x="257.88" y="367.5" font-size="12" font-family="Verdana" fill="rgb(0,0,0)"  ></text>
+</g>
+<g class="func_g" onmouseover="s(this)" onmouseout="c()" onclick="zoom(this)">
+<title>all (1,966 samples, 100%)</title><rect x="10.0" y="517" width="1180.0" height="15.0" fill="rgb(239,86,7)" rx="2" ry="2" />
+<text text-anchor="" x="13.00" y="527.5" font-size="12" font-family="Verdana" fill="rgb(0,0,0)"  ></text>
+</g>
+<g class="func_g" onmouseover="s(this)" onmouseout="c()" onclick="zoom(this)">
+<title>ngx_vslprintf (13 samples, 0.66%)</title><rect x="226.7" y="357" width="7.8" height="15.0" fill="rgb(254,157,43)" rx="2" ry="2" />
+<text text-anchor="" x="229.67" y="367.5" font-size="12" font-family="Verdana" fill="rgb(0,0,0)"  ></text>
+</g>
+<g class="func_g" onmouseover="s(this)" onmouseout="c()" onclick="zoom(this)">
+<title>ngx_http_limit_conn_handler (4 samples, 0.20%)</title><rect x="1086.2" y="293" width="2.4" height="15.0" fill="rgb(246,76,23)" rx="2" ry="2" />
+<text text-anchor="" x="1089.16" y="303.5" font-size="12" font-family="Verdana" fill="rgb(0,0,0)"  ></text>
+</g>
+<g class="func_g" onmouseover="s(this)" onmouseout="c()" onclick="zoom(this)">
+<title>ngx_http_ndg_complex_value_handler (1 samples, 0.05%)</title><rect x="724.8" y="213" width="0.6" height="15.0" fill="rgb(221,74,54)" rx="2" ry="2" />
+<text text-anchor="" x="727.84" y="223.5" font-size="12" font-family="Verdana" fill="rgb(0,0,0)"  ></text>
+</g>
+<g class="func_g" onmouseover="s(this)" onmouseout="c()" onclick="zoom(this)">
+<title>__libc_malloc (1 samples, 0.05%)</title><rect x="170.9" y="341" width="0.6" height="15.0" fill="rgb(206,117,40)" rx="2" ry="2" />
+<text text-anchor="" x="173.85" y="351.5" font-size="12" font-family="Verdana" fill="rgb(0,0,0)"  ></text>
+</g>
+<g class="func_g" onmouseover="s(this)" onmouseout="c()" onclick="zoom(this)">
+<title>ngx_http_core_find_config_phase (12 samples, 0.61%)</title><rect x="1076.6" y="309" width="7.2" height="15.0" fill="rgb(222,89,25)" rx="2" ry="2" />
+<text text-anchor="" x="1079.56" y="319.5" font-size="12" font-family="Verdana" fill="rgb(0,0,0)"  ></text>
+</g>
+<g class="func_g" onmouseover="s(this)" onmouseout="c()" onclick="zoom(this)">
+<title>_ULx86_64_step (11 samples, 0.56%)</title><rect x="14.2" y="421" width="6.6" height="15.0" fill="rgb(254,42,21)" rx="2" ry="2" />
+<text text-anchor="" x="17.20" y="431.5" font-size="12" font-family="Verdana" fill="rgb(0,0,0)"  ></text>
+</g>
+<g class="func_g" onmouseover="s(this)" onmouseout="c()" onclick="zoom(this)">
+<title>ngx_http_close_request (674 samples, 34.28%)</title><rect x="323.9" y="261" width="404.5" height="15.0" fill="rgb(246,23,7)" rx="2" ry="2" />
+<text text-anchor="" x="326.91" y="271.5" font-size="12" font-family="Verdana" fill="rgb(0,0,0)"  >ngx_http_close_request</text>
+</g>
+<g class="func_g" onmouseover="s(this)" onmouseout="c()" onclick="zoom(this)">
+<title>ngx_http_log_handler (277 samples, 14.09%)</title><rect x="558.6" y="213" width="166.2" height="15.0" fill="rgb(213,157,44)" rx="2" ry="2" />
+<text text-anchor="" x="561.59" y="223.5" font-size="12" font-family="Verdana" fill="rgb(0,0,0)"  >ngx_http_log_handler</text>
+</g>
+<g class="func_g" onmouseover="s(this)" onmouseout="c()" onclick="zoom(this)">
+<title>sigprocmask (1 samples, 0.05%)</title><rect x="16.0" y="341" width="0.6" height="15.0" fill="rgb(243,143,36)" rx="2" ry="2" />
+<text text-anchor="" x="19.00" y="351.5" font-size="12" font-family="Verdana" fill="rgb(0,0,0)"  ></text>
+</g>
+<g class="func_g" onmouseover="s(this)" onmouseout="c()" onclick="zoom(this)">
+<title>writev (457 samples, 23.25%)</title><rect x="771.1" y="53" width="274.3" height="15.0" fill="rgb(206,14,42)" rx="2" ry="2" />
+<text text-anchor="" x="774.06" y="63.5" font-size="12" font-family="Verdana" fill="rgb(0,0,0)"  >writev</text>
+</g>
+<g class="func_g" onmouseover="s(this)" onmouseout="c()" onclick="zoom(this)">
+<title>ngx_http_charset_body_filter (498 samples, 25.33%)</title><rect x="746.4" y="181" width="299.0" height="15.0" fill="rgb(208,57,30)" rx="2" ry="2" />
+<text text-anchor="" x="749.45" y="191.5" font-size="12" font-family="Verdana" fill="rgb(0,0,0)"  >ngx_http_charset_body_filter</text>
+</g>
+<g class="func_g" onmouseover="s(this)" onmouseout="c()" onclick="zoom(this)">
+<title>ngx_chain_update_sent (2 samples, 0.10%)</title><rect x="766.9" y="69" width="1.2" height="15.0" fill="rgb(237,70,48)" rx="2" ry="2" />
+<text text-anchor="" x="769.86" y="79.5" font-size="12" font-family="Verdana" fill="rgb(0,0,0)"  ></text>
+</g>
+<g class="func_g" onmouseover="s(this)" onmouseout="c()" onclick="zoom(this)">
+<title>ngx_palloc (1 samples, 0.05%)</title><rect x="220.7" y="373" width="0.6" height="15.0" fill="rgb(212,38,1)" rx="2" ry="2" />
+<text text-anchor="" x="223.67" y="383.5" font-size="12" font-family="Verdana" fill="rgb(0,0,0)"  ></text>
+</g>
+<g class="func_g" onmouseover="s(this)" onmouseout="c()" onclick="zoom(this)">
+<title>ngx_sprintf (3 samples, 0.15%)</title><rect x="567.6" y="181" width="1.8" height="15.0" fill="rgb(228,106,15)" rx="2" ry="2" />
+<text text-anchor="" x="570.59" y="191.5" font-size="12" font-family="Verdana" fill="rgb(0,0,0)"  ></text>
+</g>
+<g class="func_g" onmouseover="s(this)" onmouseout="c()" onclick="zoom(this)">
+<title>posix_memalign (5 samples, 0.25%)</title><rect x="1125.8" y="293" width="3.0" height="15.0" fill="rgb(229,84,7)" rx="2" ry="2" />
+<text text-anchor="" x="1128.78" y="303.5" font-size="12" font-family="Verdana" fill="rgb(0,0,0)"  ></text>
+</g>
+<g class="func_g" onmouseover="s(this)" onmouseout="c()" onclick="zoom(this)">
+<title>__memcpy_avx_unaligned_erms (2 samples, 0.10%)</title><rect x="232.7" y="325" width="1.2" height="15.0" fill="rgb(249,78,19)" rx="2" ry="2" />
+<text text-anchor="" x="235.68" y="335.5" font-size="12" font-family="Verdana" fill="rgb(0,0,0)"  ></text>
+</g>
+<g class="func_g" onmouseover="s(this)" onmouseout="c()" onclick="zoom(this)">
+<title>ngx_http_ndg_echo_handler (579 samples, 29.45%)</title><rect x="729.0" y="293" width="347.6" height="15.0" fill="rgb(241,85,31)" rx="2" ry="2" />
+<text text-anchor="" x="732.04" y="303.5" font-size="12" font-family="Verdana" fill="rgb(0,0,0)"  >ngx_http_ndg_echo_handler</text>
+</g>
+<g class="func_g" onmouseover="s(this)" onmouseout="c()" onclick="zoom(this)">
+<title>ngx_http_run_posted_requests (1 samples, 0.05%)</title><rect x="1122.2" y="373" width="0.6" height="15.0" fill="rgb(237,10,2)" rx="2" ry="2" />
+<text text-anchor="" x="1125.18" y="383.5" font-size="12" font-family="Verdana" fill="rgb(0,0,0)"  ></text>
+</g>
+<g class="func_g" onmouseover="s(this)" onmouseout="c()" onclick="zoom(this)">
+<title>ngx_http_chunked_body_filter (484 samples, 24.62%)</title><rect x="754.9" y="117" width="290.5" height="15.0" fill="rgb(211,163,50)" rx="2" ry="2" />
+<text text-anchor="" x="757.85" y="127.5" font-size="12" font-family="Verdana" fill="rgb(0,0,0)"  >ngx_http_chunked_body_filter</text>
+</g>
+<g class="func_g" onmouseover="s(this)" onmouseout="c()" onclick="zoom(this)">
+<title>ngx_http_core_find_location (11 samples, 0.56%)</title><rect x="1076.6" y="293" width="6.6" height="15.0" fill="rgb(237,104,22)" rx="2" ry="2" />
+<text text-anchor="" x="1079.56" y="303.5" font-size="12" font-family="Verdana" fill="rgb(0,0,0)"  ></text>
+</g>
+<g class="func_g" onmouseover="s(this)" onmouseout="c()" onclick="zoom(this)">
+<title>ngx_http_limit_req_handler (2 samples, 0.10%)</title><rect x="1088.6" y="293" width="1.2" height="15.0" fill="rgb(241,1,7)" rx="2" ry="2" />
+<text text-anchor="" x="1091.57" y="303.5" font-size="12" font-family="Verdana" fill="rgb(0,0,0)"  ></text>
+</g>
+<g class="func_g" onmouseover="s(this)" onmouseout="c()" onclick="zoom(this)">
+<title>0x7ffd9d1639b4 (1 samples, 0.05%)</title><rect x="10.0" y="501" width="0.6" height="15.0" fill="rgb(254,85,43)" rx="2" ry="2" />
+<text text-anchor="" x="13.00" y="511.5" font-size="12" font-family="Verdana" fill="rgb(0,0,0)"  ></text>
+</g>
+<g class="func_g" onmouseover="s(this)" onmouseout="c()" onclick="zoom(this)">
+<title>ngx_http_free_request (296 samples, 15.06%)</title><rect x="550.8" y="245" width="177.6" height="15.0" fill="rgb(233,4,16)" rx="2" ry="2" />
+<text text-anchor="" x="553.78" y="255.5" font-size="12" font-family="Verdana" fill="rgb(0,0,0)"  >ngx_http_free_request</text>
+</g>
+<g class="func_g" onmouseover="s(this)" onmouseout="c()" onclick="zoom(this)">
+<title>ngx_http_log_variable (14 samples, 0.71%)</title><rect x="582.0" y="197" width="8.4" height="15.0" fill="rgb(251,77,23)" rx="2" ry="2" />
+<text text-anchor="" x="584.99" y="207.5" font-size="12" font-family="Verdana" fill="rgb(0,0,0)"  ></text>
+</g>
+<g class="func_g" onmouseover="s(this)" onmouseout="c()" onclick="zoom(this)">
+<title>ngx_palloc_small (1 samples, 0.05%)</title><rect x="765.1" y="53" width="0.6" height="15.0" fill="rgb(209,49,40)" rx="2" ry="2" />
+<text text-anchor="" x="768.06" y="63.5" font-size="12" font-family="Verdana" fill="rgb(0,0,0)"  ></text>
+</g>
+<g class="func_g" onmouseover="s(this)" onmouseout="c()" onclick="zoom(this)">
+<title>_Ux86_64_getcontext (1 samples, 0.05%)</title><rect x="15.4" y="325" width="0.6" height="15.0" fill="rgb(209,129,41)" rx="2" ry="2" />
+<text text-anchor="" x="18.40" y="335.5" font-size="12" font-family="Verdana" fill="rgb(0,0,0)"  ></text>
+</g>
+<g class="func_g" onmouseover="s(this)" onmouseout="c()" onclick="zoom(this)">
+<title>ngx_create_temp_buf (3 samples, 0.15%)</title><rect x="1066.4" y="101" width="1.8" height="15.0" fill="rgb(226,14,23)" rx="2" ry="2" />
+<text text-anchor="" x="1069.36" y="111.5" font-size="12" font-family="Verdana" fill="rgb(0,0,0)"  ></text>
+</g>
+<g class="func_g" onmouseover="s(this)" onmouseout="c()" onclick="zoom(this)">
+<title>ngx_vslprintf (10 samples, 0.51%)</title><rect x="575.4" y="165" width="6.0" height="15.0" fill="rgb(251,98,46)" rx="2" ry="2" />
+<text text-anchor="" x="578.39" y="175.5" font-size="12" font-family="Verdana" fill="rgb(0,0,0)"  ></text>
+</g>
+<g class="func_g" onmouseover="s(this)" onmouseout="c()" onclick="zoom(this)">
+<title>_ULx86_64_dwarf_search_unwind_table (2 samples, 0.10%)</title><rect x="15.4" y="357" width="1.2" height="15.0" fill="rgb(224,177,0)" rx="2" ry="2" />
+<text text-anchor="" x="18.40" y="367.5" font-size="12" font-family="Verdana" fill="rgb(0,0,0)"  ></text>
+</g>
+<g class="func_g" onmouseover="s(this)" onmouseout="c()" onclick="zoom(this)">
+<title>ngx_http_write_filter (4 samples, 0.20%)</title><rect x="1068.2" y="101" width="2.4" height="15.0" fill="rgb(214,48,20)" rx="2" ry="2" />
+<text text-anchor="" x="1071.16" y="111.5" font-size="12" font-family="Verdana" fill="rgb(0,0,0)"  ></text>
+</g>
+<g class="func_g" onmouseover="s(this)" onmouseout="c()" onclick="zoom(this)">
+<title>ngx_http_core_find_location (1 samples, 0.05%)</title><rect x="1076.6" y="277" width="0.6" height="15.0" fill="rgb(216,171,29)" rx="2" ry="2" />
+<text text-anchor="" x="1079.56" y="287.5" font-size="12" font-family="Verdana" fill="rgb(0,0,0)"  ></text>
+</g>
+<g class="func_g" onmouseover="s(this)" onmouseout="c()" onclick="zoom(this)">
+<title>__memset_avx2_unaligned (1 samples, 0.05%)</title><rect x="221.9" y="357" width="0.6" height="15.0" fill="rgb(237,145,12)" rx="2" ry="2" />
+<text text-anchor="" x="224.87" y="367.5" font-size="12" font-family="Verdana" fill="rgb(0,0,0)"  ></text>
+</g>
+<g class="func_g" onmouseover="s(this)" onmouseout="c()" onclick="zoom(this)">
+<title>ngx_http_finalize_request (681 samples, 34.64%)</title><rect x="320.3" y="293" width="408.7" height="15.0" fill="rgb(221,45,12)" rx="2" ry="2" />
+<text text-anchor="" x="323.31" y="303.5" font-size="12" font-family="Verdana" fill="rgb(0,0,0)"  >ngx_http_finalize_request</text>
+</g>
+<g class="func_g" onmouseover="s(this)" onmouseout="c()" onclick="zoom(this)">
+<title>ngx_palloc (1 samples, 0.05%)</title><rect x="730.8" y="261" width="0.6" height="15.0" fill="rgb(247,115,26)" rx="2" ry="2" />
+<text text-anchor="" x="733.84" y="271.5" font-size="12" font-family="Verdana" fill="rgb(0,0,0)"  ></text>
+</g>
+<g class="func_g" onmouseover="s(this)" onmouseout="c()" onclick="zoom(this)">
+<title>ngx_http_update_location_config (1 samples, 0.05%)</title><rect x="1083.2" y="293" width="0.6" height="15.0" fill="rgb(219,64,12)" rx="2" ry="2" />
+<text text-anchor="" x="1086.16" y="303.5" font-size="12" font-family="Verdana" fill="rgb(0,0,0)"  ></text>
+</g>
+<g class="func_g" onmouseover="s(this)" onmouseout="c()" onclick="zoom(this)">
+<title>ngx_http_finalize_connection (676 samples, 34.38%)</title><rect x="322.7" y="277" width="405.7" height="15.0" fill="rgb(229,55,41)" rx="2" ry="2" />
+<text text-anchor="" x="325.71" y="287.5" font-size="12" font-family="Verdana" fill="rgb(0,0,0)"  >ngx_http_finalize_connection</text>
+</g>
+<g class="func_g" onmouseover="s(this)" onmouseout="c()" onclick="zoom(this)">
+<title>ngx_http_write_filter (481 samples, 24.47%)</title><rect x="756.7" y="101" width="288.7" height="15.0" fill="rgb(234,141,32)" rx="2" ry="2" />
+<text text-anchor="" x="759.65" y="111.5" font-size="12" font-family="Verdana" fill="rgb(0,0,0)"  >ngx_http_write_filter</text>
+</g>
+<g class="func_g" onmouseover="s(this)" onmouseout="c()" onclick="zoom(this)">
+<title>ngx_create_pool (6 samples, 0.31%)</title><rect x="167.9" y="389" width="3.6" height="15.0" fill="rgb(251,11,28)" rx="2" ry="2" />
+<text text-anchor="" x="170.85" y="399.5" font-size="12" font-family="Verdana" fill="rgb(0,0,0)"  ></text>
+</g>
+<g class="func_g" onmouseover="s(this)" onmouseout="c()" onclick="zoom(this)">
+<title>ngx_http_ssi_header_filter (29 samples, 1.48%)</title><rect x="1056.2" y="181" width="17.4" height="15.0" fill="rgb(225,21,23)" rx="2" ry="2" />
+<text text-anchor="" x="1059.15" y="191.5" font-size="12" font-family="Verdana" fill="rgb(0,0,0)"  ></text>
+</g>
+<g class="func_g" onmouseover="s(this)" onmouseout="c()" onclick="zoom(this)">
+<title>ngx_palloc_small (1 samples, 0.05%)</title><rect x="224.9" y="373" width="0.6" height="15.0" fill="rgb(216,192,25)" rx="2" ry="2" />
+<text text-anchor="" x="227.87" y="383.5" font-size="12" font-family="Verdana" fill="rgb(0,0,0)"  ></text>
+</g>
+<g class="func_g" onmouseover="s(this)" onmouseout="c()" onclick="zoom(this)">
+<title>ngx_sock_ntop (15 samples, 0.76%)</title><rect x="225.5" y="389" width="9.0" height="15.0" fill="rgb(213,213,30)" rx="2" ry="2" />
+<text text-anchor="" x="228.47" y="399.5" font-size="12" font-family="Verdana" fill="rgb(0,0,0)"  ></text>
+</g>
+<g class="func_g" onmouseover="s(this)" onmouseout="c()" onclick="zoom(this)">
+<title>ngx_list_push (2 samples, 0.10%)</title><rect x="1117.4" y="357" width="1.2" height="15.0" fill="rgb(236,60,46)" rx="2" ry="2" />
+<text text-anchor="" x="1120.38" y="367.5" font-size="12" font-family="Verdana" fill="rgb(0,0,0)"  ></text>
+</g>
+<g class="func_g" onmouseover="s(this)" onmouseout="c()" onclick="zoom(this)">
+<title>ngx_palloc (2 samples, 0.10%)</title><rect x="732.6" y="261" width="1.2" height="15.0" fill="rgb(253,209,14)" rx="2" ry="2" />
+<text text-anchor="" x="735.64" y="271.5" font-size="12" font-family="Verdana" fill="rgb(0,0,0)"  ></text>
+</g>
+<g class="func_g" onmouseover="s(this)" onmouseout="c()" onclick="zoom(this)">
+<title>ngx_alloc (1 samples, 0.05%)</title><rect x="241.7" y="341" width="0.6" height="15.0" fill="rgb(245,213,6)" rx="2" ry="2" />
+<text text-anchor="" x="244.68" y="351.5" font-size="12" font-family="Verdana" fill="rgb(0,0,0)"  ></text>
+</g>
+<g class="func_g" onmouseover="s(this)" onmouseout="c()" onclick="zoom(this)">
+<title>ngx_http_try_files_handler (1 samples, 0.05%)</title><rect x="1089.8" y="293" width="0.6" height="15.0" fill="rgb(218,203,35)" rx="2" ry="2" />
+<text text-anchor="" x="1092.77" y="303.5" font-size="12" font-family="Verdana" fill="rgb(0,0,0)"  ></text>
+</g>
+<g class="func_g" onmouseover="s(this)" onmouseout="c()" onclick="zoom(this)">
+<title>_int_malloc (8 samples, 0.41%)</title><rect x="249.5" y="309" width="4.8" height="15.0" fill="rgb(211,45,19)" rx="2" ry="2" />
+<text text-anchor="" x="252.48" y="319.5" font-size="12" font-family="Verdana" fill="rgb(0,0,0)"  ></text>
+</g>
+<g class="func_g" onmouseover="s(this)" onmouseout="c()" onclick="zoom(this)">
+<title>ngx_http_trailers_filter (499 samples, 25.38%)</title><rect x="745.8" y="197" width="299.6" height="15.0" fill="rgb(243,116,20)" rx="2" ry="2" />
+<text text-anchor="" x="748.85" y="207.5" font-size="12" font-family="Verdana" fill="rgb(0,0,0)"  >ngx_http_trailers_filter</text>
+</g>
+<g class="func_g" onmouseover="s(this)" onmouseout="c()" onclick="zoom(this)">
+<title>ngx_http_create_request (20 samples, 1.02%)</title><rect x="245.3" y="389" width="12.0" height="15.0" fill="rgb(226,65,33)" rx="2" ry="2" />
+<text text-anchor="" x="248.28" y="399.5" font-size="12" font-family="Verdana" fill="rgb(0,0,0)"  ></text>
+</g>
+<g class="func_g" onmouseover="s(this)" onmouseout="c()" onclick="zoom(this)">
+<title>__memmove_avx_unaligned (1 samples, 0.05%)</title><rect x="1073.0" y="53" width="0.6" height="15.0" fill="rgb(252,148,49)" rx="2" ry="2" />
+<text text-anchor="" x="1075.96" y="63.5" font-size="12" font-family="Verdana" fill="rgb(0,0,0)"  ></text>
+</g>
+<g class="func_g" onmouseover="s(this)" onmouseout="c()" onclick="zoom(this)">
+<title>ngx_http_log_time (1 samples, 0.05%)</title><rect x="581.4" y="197" width="0.6" height="15.0" fill="rgb(213,58,38)" rx="2" ry="2" />
+<text text-anchor="" x="584.39" y="207.5" font-size="12" font-family="Verdana" fill="rgb(0,0,0)"  ></text>
+</g>
+<g class="func_g" onmouseover="s(this)" onmouseout="c()" onclick="zoom(this)">
+<title>__memcpy_avx_unaligned_erms (1 samples, 0.05%)</title><rect x="729.6" y="277" width="0.6" height="15.0" fill="rgb(221,140,2)" rx="2" ry="2" />
+<text text-anchor="" x="732.64" y="287.5" font-size="12" font-family="Verdana" fill="rgb(0,0,0)"  ></text>
+</g>
+<g class="func_g" onmouseover="s(this)" onmouseout="c()" onclick="zoom(this)">
+<title>ngx_http_rewrite_handler (7 samples, 0.36%)</title><rect x="1095.8" y="293" width="4.2" height="15.0" fill="rgb(239,44,32)" rx="2" ry="2" />
+<text text-anchor="" x="1098.77" y="303.5" font-size="12" font-family="Verdana" fill="rgb(0,0,0)"  ></text>
+</g>
+<g class="func_g" onmouseover="s(this)" onmouseout="c()" onclick="zoom(this)">
+<title>ngx_http_gzip_header_filter (25 samples, 1.27%)</title><rect x="1058.6" y="165" width="15.0" height="15.0" fill="rgb(241,163,50)" rx="2" ry="2" />
+<text text-anchor="" x="1061.56" y="175.5" font-size="12" font-family="Verdana" fill="rgb(0,0,0)"  ></text>
+</g>
+<g class="func_g" onmouseover="s(this)" onmouseout="c()" onclick="zoom(this)">
+<title>ngx_http_core_generic_phase (11 samples, 0.56%)</title><rect x="1083.8" y="309" width="6.6" height="15.0" fill="rgb(233,86,6)" rx="2" ry="2" />
+<text text-anchor="" x="1086.76" y="319.5" font-size="12" font-family="Verdana" fill="rgb(0,0,0)"  ></text>
+</g>
+<g class="func_g" onmouseover="s(this)" onmouseout="c()" onclick="zoom(this)">
+<title>cfree@GLIBC_2.2.5 (6 samples, 0.31%)</title><rect x="547.2" y="213" width="3.6" height="15.0" fill="rgb(247,214,43)" rx="2" ry="2" />
+<text text-anchor="" x="550.18" y="223.5" font-size="12" font-family="Verdana" fill="rgb(0,0,0)"  ></text>
+</g>
+<g class="func_g" onmouseover="s(this)" onmouseout="c()" onclick="zoom(this)">
+<title>ngx_http_copy_filter (515 samples, 26.20%)</title><rect x="737.4" y="245" width="309.2" height="15.0" fill="rgb(212,179,25)" rx="2" ry="2" />
+<text text-anchor="" x="740.45" y="255.5" font-size="12" font-family="Verdana" fill="rgb(0,0,0)"  >ngx_http_copy_filter</text>
+</g>
+<g class="func_g" onmouseover="s(this)" onmouseout="c()" onclick="zoom(this)">
+<title>ngx_sprintf_num (5 samples, 0.25%)</title><rect x="231.5" y="341" width="3.0" height="15.0" fill="rgb(233,59,20)" rx="2" ry="2" />
+<text text-anchor="" x="234.48" y="351.5" font-size="12" font-family="Verdana" fill="rgb(0,0,0)"  ></text>
+</g>
+<g class="func_g" onmouseover="s(this)" onmouseout="c()" onclick="zoom(this)">
+<title>_start (1,948 samples, 99.08%)</title><rect x="20.8" y="501" width="1169.2" height="15.0" fill="rgb(207,136,41)" rx="2" ry="2" />
+<text text-anchor="" x="23.80" y="511.5" font-size="12" font-family="Verdana" fill="rgb(0,0,0)"  >_start</text>
+</g>
+<g class="func_g" onmouseover="s(this)" onmouseout="c()" onclick="zoom(this)">
+<title>ngx_http_log_request (288 samples, 14.65%)</title><rect x="555.6" y="229" width="172.8" height="15.0" fill="rgb(217,167,45)" rx="2" ry="2" />
+<text text-anchor="" x="558.58" y="239.5" font-size="12" font-family="Verdana" fill="rgb(0,0,0)"  >ngx_http_log_request</text>
+</g>
+<g class="func_g" onmouseover="s(this)" onmouseout="c()" onclick="zoom(this)">
+<title>ngx_http_process_request_line (1,452 samples, 73.86%)</title><rect x="257.3" y="389" width="871.5" height="15.0" fill="rgb(236,29,10)" rx="2" ry="2" />
+<text text-anchor="" x="260.28" y="399.5" font-size="12" font-family="Verdana" fill="rgb(0,0,0)"  >ngx_http_process_request_line</text>
+</g>
+<g class="func_g" onmouseover="s(this)" onmouseout="c()" onclick="zoom(this)">
+<title>ngx_sprintf_num (2 samples, 0.10%)</title><rect x="1072.4" y="69" width="1.2" height="15.0" fill="rgb(218,25,15)" rx="2" ry="2" />
+<text text-anchor="" x="1075.36" y="79.5" font-size="12" font-family="Verdana" fill="rgb(0,0,0)"  ></text>
+</g>
+<g class="func_g" onmouseover="s(this)" onmouseout="c()" onclick="zoom(this)">
+<title>__libc_malloc (1 samples, 0.05%)</title><rect x="241.7" y="325" width="0.6" height="15.0" fill="rgb(239,212,12)" rx="2" ry="2" />
+<text text-anchor="" x="244.68" y="335.5" font-size="12" font-family="Verdana" fill="rgb(0,0,0)"  ></text>
+</g>
+<g class="func_g" onmouseover="s(this)" onmouseout="c()" onclick="zoom(this)">
+<title>ngx_http_variable_remote_addr (3 samples, 0.15%)</title><rect x="596.4" y="165" width="1.8" height="15.0" fill="rgb(227,122,4)" rx="2" ry="2" />
+<text text-anchor="" x="599.40" y="175.5" font-size="12" font-family="Verdana" fill="rgb(0,0,0)"  ></text>
+</g>
+<g class="func_g" onmouseover="s(this)" onmouseout="c()" onclick="zoom(this)">
+<title>_Ux86_64_getcontext (11 samples, 0.56%)</title><rect x="14.2" y="389" width="6.6" height="15.0" fill="rgb(207,225,14)" rx="2" ry="2" />
+<text text-anchor="" x="17.20" y="399.5" font-size="12" font-family="Verdana" fill="rgb(0,0,0)"  ></text>
+</g>
+<g class="func_g" onmouseover="s(this)" onmouseout="c()" onclick="zoom(this)">
+<title>_Ux86_64_getcontext (11 samples, 0.56%)</title><rect x="14.2" y="405" width="6.6" height="15.0" fill="rgb(214,91,19)" rx="2" ry="2" />
+<text text-anchor="" x="17.20" y="415.5" font-size="12" font-family="Verdana" fill="rgb(0,0,0)"  ></text>
+</g>
+<g class="func_g" onmouseover="s(this)" onmouseout="c()" onclick="zoom(this)">
+<title>ngx_http_range_body_filter (518 samples, 26.35%)</title><rect x="735.6" y="261" width="311.0" height="15.0" fill="rgb(208,47,50)" rx="2" ry="2" />
+<text text-anchor="" x="738.65" y="271.5" font-size="12" font-family="Verdana" fill="rgb(0,0,0)"  >ngx_http_range_body_filter</text>
+</g>
+<g class="func_g" onmouseover="s(this)" onmouseout="c()" onclick="zoom(this)">
+<title>ngx_palloc_small (2 samples, 0.10%)</title><rect x="732.6" y="245" width="1.2" height="15.0" fill="rgb(225,155,2)" rx="2" ry="2" />
+<text text-anchor="" x="735.64" y="255.5" font-size="12" font-family="Verdana" fill="rgb(0,0,0)"  ></text>
+</g>
+<g class="func_g" onmouseover="s(this)" onmouseout="c()" onclick="zoom(this)">
+<title>ngx_sprintf_num (4 samples, 0.20%)</title><rect x="579.0" y="149" width="2.4" height="15.0" fill="rgb(244,106,14)" rx="2" ry="2" />
+<text text-anchor="" x="581.99" y="159.5" font-size="12" font-family="Verdana" fill="rgb(0,0,0)"  ></text>
+</g>
+<g class="func_g" onmouseover="s(this)" onmouseout="c()" onclick="zoom(this)">
+<title>ngx_create_temp_buf (9 samples, 0.46%)</title><rect x="239.9" y="389" width="5.4" height="15.0" fill="rgb(223,146,26)" rx="2" ry="2" />
+<text text-anchor="" x="242.88" y="399.5" font-size="12" font-family="Verdana" fill="rgb(0,0,0)"  ></text>
+</g>
+<g class="func_g" onmouseover="s(this)" onmouseout="c()" onclick="zoom(this)">
+<title>__pthread_enable_asynccancel (2 samples, 0.10%)</title><rect x="1182.2" y="357" width="1.2" height="15.0" fill="rgb(220,42,23)" rx="2" ry="2" />
+<text text-anchor="" x="1185.20" y="367.5" font-size="12" font-family="Verdana" fill="rgb(0,0,0)"  ></text>
+</g>
+<g class="func_g" onmouseover="s(this)" onmouseout="c()" onclick="zoom(this)">
+<title>ngx_rbtree_insert (5 samples, 0.25%)</title><rect x="179.9" y="357" width="3.0" height="15.0" fill="rgb(243,87,33)" rx="2" ry="2" />
+<text text-anchor="" x="182.86" y="367.5" font-size="12" font-family="Verdana" fill="rgb(0,0,0)"  ></text>
+</g>
+<g class="func_g" onmouseover="s(this)" onmouseout="c()" onclick="zoom(this)">
+<title>ngx_memalign (6 samples, 0.31%)</title><rect x="1125.2" y="309" width="3.6" height="15.0" fill="rgb(233,221,54)" rx="2" ry="2" />
+<text text-anchor="" x="1128.18" y="319.5" font-size="12" font-family="Verdana" fill="rgb(0,0,0)"  ></text>
+</g>
+<g class="func_g" onmouseover="s(this)" onmouseout="c()" onclick="zoom(this)">
+<title>__pthread_enable_asynccancel (2 samples, 0.10%)</title><rect x="723.6" y="149" width="1.2" height="15.0" fill="rgb(252,206,9)" rx="2" ry="2" />
+<text text-anchor="" x="726.64" y="159.5" font-size="12" font-family="Verdana" fill="rgb(0,0,0)"  ></text>
+</g>
+<g class="func_g" onmouseover="s(this)" onmouseout="c()" onclick="zoom(this)">
+<title>ngx_output_chain_to_iovec (2 samples, 0.10%)</title><rect x="768.1" y="69" width="1.2" height="15.0" fill="rgb(254,226,53)" rx="2" ry="2" />
+<text text-anchor="" x="771.06" y="79.5" font-size="12" font-family="Verdana" fill="rgb(0,0,0)"  ></text>
+</g>
+</svg>
