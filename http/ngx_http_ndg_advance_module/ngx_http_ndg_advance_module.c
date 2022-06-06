@@ -327,6 +327,7 @@ info_rbtree_lookup(ngx_rbtree_t *rbtree, int val, ngx_uint_t key)
 
         if (val != n->x) {
             node = (val < n->x) ? node->left : node->right;
+            continue;
         }
 
         return n;
