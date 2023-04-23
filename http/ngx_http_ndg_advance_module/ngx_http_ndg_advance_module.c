@@ -424,7 +424,7 @@ static void ngx_http_ndg_buf_test(ngx_http_request_t *r)
 
     ngx_str_t str = ngx_string("metroid");
 
-    ngx_memzero(buf->pos, buf->end - buf->start);
+    ngx_memzero(buf->start, buf->end - buf->start);
     buf->last = ngx_cpymem(buf->pos, str.data, str.len);
     assert(ngx_buf_size(buf) == (off_t)str.len);
 
